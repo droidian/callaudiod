@@ -57,3 +57,4 @@ config_h = configure_file (
 subdir('data')
 subdir('libcallaudio')
 subdir('src')
+subdir('tools')
