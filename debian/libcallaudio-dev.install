@@ -1,0 +1,3 @@
+/usr/include
+/usr/lib/*/libcallaudio-*.so
+/usr/lib/*/pkgconfig/libcallaudio-*.pc

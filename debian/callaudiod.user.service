@@ -1,0 +1,12 @@
+[Unit]
+Description=Call audio routing daemon
+StartLimitIntervalSec=0
+Requires=pulseaudio.service
+
+[Service]
+ExecStart=/usr/bin/callaudiod
+Restart=on-failure
+RestartSec=500ms
+
+[Install]
+WantedBy=default.target
