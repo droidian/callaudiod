@@ -49,6 +49,11 @@ config_data.set_quoted('APP_DATA_NAME', app_name)
 config_data.set_quoted('DATADIR', full_datadir)
 config_data.set_quoted('SYSCONFDIR', full_sysconfdir)
 
+config_h = configure_file (
+    output: 'config.h',
+    configuration: config_data
+)
+
 subdir('data')
 subdir('libcallaudio')
 subdir('src')

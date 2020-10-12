@@ -13,11 +13,6 @@ cad_deps = [
     dependency('libpulse-mainloop-glib'),
 ]
 
-config_h = configure_file (
-    output: 'config.h',
-    configuration: config_data
-)
-
 executable (
     'callaudiod',
     config_h,
