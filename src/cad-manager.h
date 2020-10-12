@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include "cad-dbus.h"
+#include "callaudio-dbus.h"
+
 #include "cad-operation.h"
 #include <glib-object.h>
 
@@ -20,7 +21,7 @@ G_BEGIN_DECLS
 #define CAD_TYPE_MANAGER (cad_manager_get_type())
 
 G_DECLARE_FINAL_TYPE(CadManager, cad_manager, CAD, MANAGER,
-                     CadDbusCallAudioSkeleton);
+                     CallAudioDbusCallAudioSkeleton);
 
 CadManager *cad_manager_get_default(void);
 

@@ -13,14 +13,14 @@
 #include <glib-unix.h>
 
 typedef struct _CadManager {
-    CadDbusCallAudioSkeleton parent;
+    CallAudioDbusCallAudioSkeleton parent;
 } CadManager;
 
-static void cad_manager_call_audio_iface_init(CadDbusCallAudioIface *iface);
+static void cad_manager_call_audio_iface_init(CallAudioDbusCallAudioIface *iface);
 
 G_DEFINE_TYPE_WITH_CODE(CadManager, cad_manager,
-                        CAD_DBUS_TYPE_CALL_AUDIO_SKELETON,
-                        G_IMPLEMENT_INTERFACE(CAD_DBUS_TYPE_CALL_AUDIO,
+                        CALL_AUDIO_DBUS_TYPE_CALL_AUDIO_SKELETON,
+                        G_IMPLEMENT_INTERFACE(CALL_AUDIO_DBUS_TYPE_CALL_AUDIO,
                                               cad_manager_call_audio_iface_init));
 
 static void complete_command_cb(CadOperation *op)
@@ -30,13 +30,13 @@ static void complete_command_cb(CadOperation *op)
 
     switch (op->type) {
     case CAD_OPERATION_SELECT_MODE:
-        cad_dbus_call_audio_complete_select_mode(op->object, op->invocation, op->result);
+        call_audio_dbus_call_audio_complete_select_mode(op->object, op->invocation, op->result);
         break;
     case CAD_OPERATION_ENABLE_SPEAKER:
-        cad_dbus_call_audio_complete_enable_speaker(op->object, op->invocation, op->result);
+        call_audio_dbus_call_audio_complete_enable_speaker(op->object, op->invocation, op->result);
         break;
     case CAD_OPERATION_MUTE_MIC:
-        cad_dbus_call_audio_complete_mute_mic(op->object, op->invocation, op->result);
+        call_audio_dbus_call_audio_complete_mute_mic(op->object, op->invocation, op->result);
         break;
     default:
         break;
@@ -45,7 +45,7 @@ static void complete_command_cb(CadOperation *op)
     free(op);
 }
 
-static gboolean cad_manager_handle_select_mode(CadDbusCallAudio *object,
+static gboolean cad_manager_handle_select_mode(CallAudioDbusCallAudio *object,
                                                GDBusMethodInvocation *invocation,
                                                guint mode)
 {
@@ -69,7 +69,7 @@ static gboolean cad_manager_handle_select_mode(CadDbusCallAudio *object,
     return TRUE;
 }
 
-static gboolean cad_manager_handle_enable_speaker(CadDbusCallAudio *object,
+static gboolean cad_manager_handle_enable_speaker(CallAudioDbusCallAudio *object,
                                                   GDBusMethodInvocation *invocation,
                                                   gboolean enable)
 {
@@ -86,7 +86,7 @@ static gboolean cad_manager_handle_enable_speaker(CadDbusCallAudio *object,
     return TRUE;
 }
 
-static gboolean cad_manager_handle_mute_mic(CadDbusCallAudio *object,
+static gboolean cad_manager_handle_mute_mic(CallAudioDbusCallAudio *object,
                                             GDBusMethodInvocation *invocation,
                                             gboolean mute)
 {
@@ -113,7 +113,7 @@ static void cad_manager_dispose(GObject *object)
     G_OBJECT_CLASS(cad_manager_parent_class)->dispose(object);
 }
 
-static void cad_manager_call_audio_iface_init(CadDbusCallAudioIface *iface)
+static void cad_manager_call_audio_iface_init(CallAudioDbusCallAudioIface *iface)
 {
     iface->handle_select_mode = cad_manager_handle_select_mode;
     iface->handle_enable_speaker = cad_manager_handle_enable_speaker;

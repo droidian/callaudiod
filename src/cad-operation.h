@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "cad-dbus.h"
+#include "callaudio-dbus.h"
 #include <glib-object.h>
 
 typedef enum {
@@ -21,7 +21,7 @@ typedef void (*CadOperationCallback)(CadOperation *op);
 
 struct _CadOperation {
     CadOperationType type;
-    CadDbusCallAudio *object;
+    CallAudioDbusCallAudio *object;
     GDBusMethodInvocation *invocation;
     CadOperationCallback callback;
     guint result;
