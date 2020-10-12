@@ -1,0 +1,6 @@
+LIBCALLAUDIO_0_0_0 {
+	global:
+		call_audio_*;
+	local:
+		*;
+};
