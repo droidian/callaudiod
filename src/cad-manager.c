@@ -6,6 +6,7 @@
 
 #define G_LOG_DOMAIN "callaudiod-manager"
 
+#include "callaudiod.h"
 #include "cad-manager.h"
 #include "cad-pulse.h"
 

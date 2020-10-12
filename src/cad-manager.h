@@ -11,11 +11,6 @@
 #include "cad-operation.h"
 #include <glib-object.h>
 
-#define CALLAUDIO_DBUS_NAME "org.mobian_project.CallAudio"
-#define CALLAUDIO_DBUS_PATH "/org/mobian_project/CallAudio"
-
-#define CALLAUDIO_DBUS_TYPE G_BUS_TYPE_SESSION
-
 G_BEGIN_DECLS
 
 #define CAD_TYPE_MANAGER (cad_manager_get_type())

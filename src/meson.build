@@ -23,7 +23,7 @@ executable (
     config_h,
     generated_dbus_sources,
     [
-        'callaudiod.c',
+        'callaudiod.c', 'callaudiod.h',
         'cad-manager.c', 'cad-manager.h',
         'cad-pulse.c', 'cad-pulse.h',
     ],
