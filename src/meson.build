@@ -5,27 +5,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 
-gnome = import('gnome')
-
-# DBus server interface
-prefix = 'org.mobian_project.'
-namespace = 'CadDbus'
-
-generated_dbus_sources = []
-
-dbus_interfaces = [ 'org.mobian_project.CallAudio.xml' ]
-
-generated_dbus_sources += gnome.gdbus_codegen('cad-dbus',
-    sources          : dbus_interfaces,
-    object_manager   : false,
-    interface_prefix : prefix,
-    install_header   : false,
-    namespace        : namespace)
-
-dbus_header_dir = meson.current_build_dir()
-dbus_inc = include_directories('.')
-install_data(dbus_interfaces, install_dir: ifacedir)
-
 cad_deps = [
     dependency('alsa'),
     dependency('gobject-2.0'),

@@ -45,4 +45,5 @@ config_data.set_quoted('APP_DATA_NAME', app_name)
 config_data.set_quoted('DATADIR', full_datadir)
 config_data.set_quoted('SYSCONFDIR', full_sysconfdir)
 
+subdir('data')
 subdir('src')
