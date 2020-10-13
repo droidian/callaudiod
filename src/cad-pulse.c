@@ -34,7 +34,6 @@ struct _CadPulse
 
     gboolean has_voice_profile;
     gchar *speaker_port;
-    gchar *earpiece_port;
 };
 
 G_DEFINE_TYPE(CadPulse, cad_pulse, G_TYPE_OBJECT);
@@ -102,20 +101,10 @@ static void process_sink_ports(CadPulse *self, const pa_sink_info *info)
             } else if (!self->speaker_port) {
                 self->speaker_port = g_strdup(port->name);
             }
-        } else if (strstr(port->name, SND_USE_CASE_DEV_HANDSET) != NULL ||
-                   strstr(port->name, SND_USE_CASE_DEV_EARPIECE) != NULL) {
-            if (self->earpiece_port && strcmp(port->name, self->earpiece_port) != 0) {
-                g_free(self->earpiece_port);
-                self->earpiece_port = g_strdup(port->name);
-            } else if (!self->earpiece_port) {
-                self->earpiece_port = g_strdup(port->name);
-            }
         }
     }
 
     g_debug("SINK:   speaker_port='%s'", self->speaker_port);
-    if (self->earpiece_port)
-        g_debug("SINK:   earpiece_port='%s'", self->earpiece_port);
 }
 
 static void process_new_sink(CadPulse *self, const pa_sink_info *info)
@@ -447,14 +436,10 @@ void cad_pulse_select_mode(guint mode, CadOperation *cad_op)
         op = pa_context_get_card_info_by_index(operation->pulse->ctx,
                                                operation->pulse->card_id,
                                                set_card_profile, operation);
-    } else if (operation->pulse->earpiece_port) {
+    } else {
         op = pa_context_get_sink_info_by_index(operation->pulse->ctx,
                                                operation->pulse->sink_id,
                                                set_output_port, operation);
-    } else {
-        g_critical("Card %u has no voice call profile and no earpiece port",
-                   operation->pulse->card_id);
-        operation_complete_cb(operation->pulse->ctx, 0, operation);
     }
 
     if (op)
