@@ -32,7 +32,9 @@ struct _CadPulse
     int sink_id;
     int source_id;
 
+    gboolean has_voice_profile;
     gchar *speaker_port;
+    gchar *earpiece_port;
 };
 
 G_DEFINE_TYPE(CadPulse, cad_pulse, G_TYPE_OBJECT);
@@ -77,9 +79,20 @@ static void process_sink_ports(CadPulse *self, const pa_sink_info *info)
             } else if (!self->speaker_port) {
                 self->speaker_port = g_strdup(port->name);
             }
+        } else if (strstr(port->name, SND_USE_CASE_DEV_HANDSET) != NULL ||
+                   strstr(port->name, SND_USE_CASE_DEV_EARPIECE) != NULL) {
+            if (self->earpiece_port && strcmp(port->name, self->earpiece_port) != 0) {
+                g_free(self->earpiece_port);
+                self->earpiece_port = g_strdup(port->name);
+            } else if (!self->earpiece_port) {
+                self->earpiece_port = g_strdup(port->name);
+            }
+        }
     }
 
     g_debug("SINK:   speaker_port='%s'", self->speaker_port);
+    if (self->earpiece_port)
+        g_debug("SINK:   earpiece_port='%s'", self->earpiece_port);
 }
 
 static void process_new_sink(CadPulse *self, const pa_sink_info *info)
@@ -129,6 +142,7 @@ static void init_card_info(pa_context *ctx, const pa_card_info *info, int eol, v
 {
     CadPulse *self = data;
     const gchar *prop;
+    guint i;
 
     if (eol == 1)
         return;
@@ -149,6 +163,15 @@ static void init_card_info(pa_context *ctx, const pa_card_info *info, int eol, v
     self->card_id = info->index;
 
     g_debug("CARD: idx=%u name='%s'", info->index, info->name);
+
+    for (i = 0; i < info->n_profiles; i++) {
+        pa_card_profile_info2 *profile = info->profiles2[i];
+
+        if (strstr(profile->name, SND_USE_CASE_VERB_VOICECALL) != NULL) {
+            self->has_voice_profile = TRUE;
+            break;
+        }
+    }
 }
 
 static void init_cards_list(CadPulse *self)
