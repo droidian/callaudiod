@@ -33,7 +33,6 @@ struct _CadPulse
     int source_id;
 
     gchar *speaker_port;
-    gchar *default_port;
 };
 
 G_DEFINE_TYPE(CadPulse, cad_pulse, G_TYPE_OBJECT);
@@ -66,7 +65,6 @@ static void process_new_source(CadPulse *self, const pa_source_info *info)
 
 static void process_sink_ports(CadPulse *self, const pa_sink_info *info)
 {
-    pa_sink_port_info *active = info->active_port;
     int i;
 
     for (i = 0; i < info->n_ports; i++) {
@@ -79,19 +77,9 @@ static void process_sink_ports(CadPulse *self, const pa_sink_info *info)
             } else if (!self->speaker_port) {
                 self->speaker_port = g_strdup(port->name);
             }
-
-            if (port == active && self->default_port) {
-                g_free(self->default_port);
-                self->default_port = NULL;
-            }
-        } else if (port == active) {
-            self->default_port = g_strdup(port->name);
-        }
     }
 
     g_debug("SINK:   speaker_port='%s'", self->speaker_port);
-    if (self->default_port)
-        g_debug("SINK:   default_port='%s'", self->default_port);
 }
 
 static void process_new_sink(CadPulse *self, const pa_sink_info *info)
@@ -276,8 +264,6 @@ static void dispose(GObject *object)
 
     if (self->speaker_port)
         g_free(self->speaker_port);
-    if (self->default_port)
-        g_free(self->default_port);
 
     if (self->ctx) {
         pa_context_disconnect(self->ctx);
@@ -381,6 +367,7 @@ static void set_speaker_enable(pa_context *ctx, const pa_sink_info *info, int eo
     CadPulseOperation *operation = data;
     pa_sink_port_info *port;
     pa_operation *op = NULL;
+    const gchar *target_port;
 
     if (eol == 1)
         return;
@@ -391,21 +378,32 @@ static void set_speaker_enable(pa_context *ctx, const pa_sink_info *info, int eo
     if (info->card != operation->pulse->card_id || info->index != operation->pulse->sink_id)
         return;
 
+    target_port = operation->pulse->speaker_port;
     port = info->active_port;
 
-    if (strcmp(port->name, operation->pulse->speaker_port) == 0 && !operation->value) {
-        if (operation->pulse->default_port) {
-            op = pa_context_set_sink_port_by_index(ctx, operation->pulse->sink_id,
-                                                   operation->pulse->default_port,
-                                                   operation_complete_cb, operation);
-       }
-    } else if (strcmp(port->name, operation->pulse->speaker_port) != 0 && operation->value) {
-        if (operation->pulse->default_port)
-            g_free(operation->pulse->default_port);
-        operation->pulse->default_port = g_strdup(port->name);
+    if (strcmp(port->name, target_port) == 0 && !operation->value) {
+        pa_sink_port_info *available_port = NULL;
+        guint i;
 
+        // Look for the highest priority available port which isn't target port
+        for (i = 0; i < info->n_ports; i++) {
+            port = info->ports[i];
+
+            if (port->available != PA_PORT_AVAILABLE_NO &&
+                strcmp(port->name, target_port) != 0 &&
+                (!available_port || port->priority > available_port->priority)) {
+                available_port = port;
+            }
+        }
+
+        if (available_port) {
+            op = pa_context_set_sink_port_by_index(ctx, operation->pulse->sink_id,
+                                                   available_port->name,
+                                                   operation_complete_cb, operation);
+        }
+    } else if (strcmp(port->name, target_port) != 0 && operation->value) {
         op = pa_context_set_sink_port_by_index(ctx, operation->pulse->sink_id,
-                                               operation->pulse->speaker_port,
+                                               target_port,
                                                operation_complete_cb, operation);
     }
 
