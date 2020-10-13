@@ -50,6 +50,29 @@ typedef struct _CadPulseOperation {
 #define CARD_FORM_FACTOR "internal"
 #define CARD_MODEM_CLASS "modem"
 
+static const gchar *get_available_output(const pa_sink_info *sink, const gchar *exclude)
+{
+    pa_sink_port_info *available_port = NULL;
+    guint i;
+
+    for (i = 0; i < sink->n_ports; i++) {
+        pa_sink_port_info *port = sink->ports[i];
+
+        if ((exclude && strcmp(port->name, exclude) == 0) ||
+            port->available == PA_PORT_AVAILABLE_NO) {
+            continue;
+        }
+
+        if (!available_port || port->priority > available_port->priority)
+            available_port = port;
+    }
+
+    if (available_port)
+        return available_port->name;
+
+    return NULL;
+}
+
 static void process_new_source(CadPulse *self, const pa_source_info *info)
 {
     const gchar *prop;
@@ -385,30 +408,18 @@ static void set_output_port(pa_context *ctx, const pa_sink_info *info, int eol, 
         return;
 
     if (operation->op->type == CAD_OPERATION_SELECT_MODE)
-        target_port = operation->pulse->earpiece_port;
+        target_port = get_available_output(info, operation->pulse->speaker_port);
     else
         target_port = operation->pulse->speaker_port;
 
     port = info->active_port;
 
     if (strcmp(port->name, target_port) == 0 && !operation->value) {
-        pa_sink_port_info *available_port = NULL;
-        guint i;
-
-        // Look for the highest priority available port which isn't target port
-        for (i = 0; i < info->n_ports; i++) {
-            port = info->ports[i];
-
-            if (port->available != PA_PORT_AVAILABLE_NO &&
-                strcmp(port->name, target_port) != 0 &&
-                (!available_port || port->priority > available_port->priority)) {
-                available_port = port;
-            }
-        }
+        const gchar *available_port = get_available_output(info, target_port);
 
         if (available_port) {
             op = pa_context_set_sink_port_by_index(ctx, operation->pulse->sink_id,
-                                                   available_port->name,
+                                                   available_port,
                                                    operation_complete_cb, operation);
         }
     } else if (strcmp(port->name, target_port) != 0 && operation->value) {
