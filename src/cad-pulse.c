@@ -368,21 +368,7 @@ static void set_card_profile(pa_context *ctx, const pa_card_info *info, int eol,
         operation_complete_cb(ctx, 1, operation);
 }
 
-void cad_pulse_select_mode(guint mode, CadOperation *cad_op)
-{
-    CadPulseOperation *operation = malloc(sizeof(CadPulseOperation));
-    pa_operation *op = NULL;
-
-    operation->pulse = cad_pulse_get_default();
-    operation->op = cad_op;
-    operation->value = mode;
-
-    op = pa_context_get_card_info_by_index(operation->pulse->ctx, operation->pulse->card_id,
-                                           set_card_profile, operation);
-    pa_operation_unref(op);
-}
-
-static void set_speaker_enable(pa_context *ctx, const pa_sink_info *info, int eol, void *data)
+static void set_output_port(pa_context *ctx, const pa_sink_info *info, int eol, void *data)
 {
     CadPulseOperation *operation = data;
     pa_sink_port_info *port;
@@ -398,7 +384,11 @@ static void set_speaker_enable(pa_context *ctx, const pa_sink_info *info, int eo
     if (info->card != operation->pulse->card_id || info->index != operation->pulse->sink_id)
         return;
 
-    target_port = operation->pulse->speaker_port;
+    if (operation->op->type == CAD_OPERATION_SELECT_MODE)
+        target_port = operation->pulse->earpiece_port;
+    else
+        target_port = operation->pulse->speaker_port;
+
     port = info->active_port;
 
     if (strcmp(port->name, target_port) == 0 && !operation->value) {
@@ -433,6 +423,33 @@ static void set_speaker_enable(pa_context *ctx, const pa_sink_info *info, int eo
         operation_complete_cb(ctx, 1, operation);
 }
 
+void cad_pulse_select_mode(guint mode, CadOperation *cad_op)
+{
+    CadPulseOperation *operation = malloc(sizeof(CadPulseOperation));
+    pa_operation *op = NULL;
+
+    operation->pulse = cad_pulse_get_default();
+    operation->op = cad_op;
+    operation->value = mode;
+
+    if (operation->pulse->has_voice_profile) {
+        op = pa_context_get_card_info_by_index(operation->pulse->ctx,
+                                               operation->pulse->card_id,
+                                               set_card_profile, operation);
+    } else if (operation->pulse->earpiece_port) {
+        op = pa_context_get_sink_info_by_index(operation->pulse->ctx,
+                                               operation->pulse->sink_id,
+                                               set_output_port, operation);
+    } else {
+        g_critical("Card %u has no voice call profile and no earpiece port",
+                   operation->pulse->card_id);
+        operation_complete_cb(operation->pulse->ctx, 0, operation);
+    }
+
+    if (op)
+        pa_operation_unref(op);
+}
+
 void cad_pulse_enable_speaker(gboolean enable, CadOperation *cad_op)
 {
     CadPulseOperation *operation;
@@ -453,7 +470,7 @@ void cad_pulse_enable_speaker(gboolean enable, CadOperation *cad_op)
 
     op = pa_context_get_sink_info_by_index(operation->pulse->ctx,
                                            operation->pulse->sink_id,
-                                           set_speaker_enable, operation);
+                                           set_output_port, operation);
     pa_operation_unref(op);
 }
 
