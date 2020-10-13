@@ -339,13 +339,10 @@ static void set_card_profile(pa_context *ctx, const pa_card_info *info, int eol,
                                                   operation_complete_cb, operation);
     }
 
-    if (op) {
+    if (op)
         pa_operation_unref(op);
-    } else {
-        operation->op->result = 1;
-        operation->op->callback(operation->op);
-        free(operation);
-    }
+    else
+        operation_complete_cb(ctx, 1, operation);
 }
 
 void cad_pulse_select_mode(guint mode, CadOperation *cad_op)
@@ -407,13 +404,10 @@ static void set_speaker_enable(pa_context *ctx, const pa_sink_info *info, int eo
                                                operation_complete_cb, operation);
     }
 
-    if (op) {
+    if (op)
         pa_operation_unref(op);
-    } else {
-        operation->op->result = 1;
-        operation->op->callback(operation->op);
-        free(operation);
-    }
+    else
+        operation_complete_cb(ctx, 1, operation);
 }
 
 void cad_pulse_enable_speaker(gboolean enable, CadOperation *cad_op)
@@ -434,7 +428,8 @@ void cad_pulse_enable_speaker(gboolean enable, CadOperation *cad_op)
     operation->op = cad_op;
     operation->value = (guint)enable;
 
-    op = pa_context_get_sink_info_by_index(operation->pulse->ctx, operation->pulse->sink_id,
+    op = pa_context_get_sink_info_by_index(operation->pulse->ctx,
+                                           operation->pulse->sink_id,
                                            set_speaker_enable, operation);
     pa_operation_unref(op);
 }
@@ -461,13 +456,10 @@ static void set_mic_mute(pa_context *ctx, const pa_source_info *info, int eol, v
                                                  operation_complete_cb, operation);
     }
 
-    if (op) {
+    if (op)
         pa_operation_unref(op);
-    } else {
-        operation->op->result = 1;
-        operation->op->callback(operation->op);
-        free(operation);
-    }
+    else
+        operation_complete_cb(ctx, 1, operation);
 }
 
 void cad_pulse_mute_mic(gboolean mute, CadOperation *cad_op)
@@ -488,7 +480,8 @@ void cad_pulse_mute_mic(gboolean mute, CadOperation *cad_op)
     operation->op = cad_op;
     operation->value = (guint)mute;
 
-    op = pa_context_get_source_info_by_index(operation->pulse->ctx, operation->pulse->source_id,
+    op = pa_context_get_source_info_by_index(operation->pulse->ctx,
+                                             operation->pulse->source_id,
                                              set_mic_mute, operation);
     pa_operation_unref(op);
 }
