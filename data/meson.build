@@ -25,3 +25,16 @@ generated_dbus_sources += gnome.gdbus_codegen('callaudio-dbus',
 dbus_header_dir = meson.current_build_dir()
 dbus_inc = include_directories('.')
 install_data(dbus_interfaces, install_dir: ifacedir)
+
+# systemd service file
+service_data = configuration_data()
+service_data.set('bindir', bindir)
+service_file = 'org.mobian_project.CallAudio.service'
+
+configure_file(
+  input : service_file + '.in',
+  output : service_file,
+  configuration : service_data,
+  install : true,
+  install_dir: servicedir,
+)
