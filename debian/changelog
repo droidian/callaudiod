@@ -1,3 +1,12 @@
+callaudiod (0.0.3-1) unstable; urgency=medium
+
+  * New upstream release 0.0.3
+  * debian: remove custom user service.
+    Upstream now provides a D-Bus service for automatic activation.
+  * debian: update symbols file
+
+ -- Arnaud Ferraris <arnaud.ferraris@gmail.com>  Mon, 19 Oct 2020 19:50:10 +0200
+
 callaudiod (0.0.2-1) unstable; urgency=medium
 
   * New upstream release 0.0.2
