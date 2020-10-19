@@ -40,6 +40,7 @@ static void complete_command_cb(CadOperation *op)
         call_audio_dbus_call_audio_complete_mute_mic(op->object, op->invocation, op->result);
         break;
     default:
+        g_critical("unknown operation %d", op->type);
         break;
     }
 
@@ -60,12 +61,20 @@ static gboolean cad_manager_handle_select_mode(CallAudioDbusCallAudio *object,
     }
 
     op = malloc(sizeof(CadOperation));
+    if (!op) {
+        g_critical("Unable to allocate memory for select mode operation");
+        g_dbus_method_invocation_return_error(invocation, G_DBUS_ERROR,
+                                              G_DBUS_ERROR_NO_MEMORY,
+                                              "Failed to allocate operation");
+        return FALSE;
+    }
+
     op->type = CAD_OPERATION_SELECT_MODE;
     op->object = object;
     op->invocation = invocation;
     op->callback = complete_command_cb;
 
-    g_message("Select mode: %u", mode);
+    g_debug("Select mode: %u", mode);
     cad_pulse_select_mode(mode, op);
     return TRUE;
 }
@@ -77,12 +86,20 @@ static gboolean cad_manager_handle_enable_speaker(CallAudioDbusCallAudio *object
     CadOperation *op;
 
     op = malloc(sizeof(CadOperation));
+    if (!op) {
+        g_critical("Unable to allocate memory for speaker operation");
+        g_dbus_method_invocation_return_error(invocation, G_DBUS_ERROR,
+                                              G_DBUS_ERROR_NO_MEMORY,
+                                              "Failed to allocate operation");
+        return FALSE;
+    }
+
     op->type = CAD_OPERATION_ENABLE_SPEAKER;
     op->object = object;
     op->invocation = invocation;
     op->callback = complete_command_cb;
 
-    g_message("Enable speaker: %d", enable);
+    g_debug("Enable speaker: %d", enable);
     cad_pulse_enable_speaker(enable, op);
     return TRUE;
 }
@@ -94,12 +111,20 @@ static gboolean cad_manager_handle_mute_mic(CallAudioDbusCallAudio *object,
     CadOperation *op;
 
     op = malloc(sizeof(CadOperation));
+    if (!op) {
+        g_critical("Unable to allocate memory for mic operation");
+        g_dbus_method_invocation_return_error(invocation, G_DBUS_ERROR,
+                                              G_DBUS_ERROR_NO_MEMORY,
+                                              "Failed to allocate operation");
+        return FALSE;
+    }
+
     op->type = CAD_OPERATION_MUTE_MIC;
     op->object = object;
     op->invocation = invocation;
     op->callback = complete_command_cb;
 
-    g_message("Mute mic: %d", mute);
+    g_debug("Mute mic: %d", mute);
     cad_pulse_mute_mic(mute, op);
     return TRUE;
 }
@@ -138,6 +163,7 @@ CadManager *cad_manager_get_default(void)
     static CadManager *manager;
 
     if (manager == NULL) {
+        g_debug("initializing manager...");
         manager = g_object_new(CAD_TYPE_MANAGER, NULL);
         g_object_add_weak_pointer(G_OBJECT(manager), (gpointer *)&manager);
     }
