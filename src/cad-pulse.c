@@ -417,7 +417,6 @@ static void set_card_profile(pa_context *ctx, const pa_card_info *info, int eol,
 static void set_output_port(pa_context *ctx, const pa_sink_info *info, int eol, void *data)
 {
     CadPulseOperation *operation = data;
-    pa_sink_port_info *port;
     pa_operation *op = NULL;
     const gchar *target_port;
 
@@ -430,24 +429,34 @@ static void set_output_port(pa_context *ctx, const pa_sink_info *info, int eol, 
     if (info->card != operation->pulse->card_id || info->index != operation->pulse->sink_id)
         return;
 
-    if (operation->op->type == CAD_OPERATION_SELECT_MODE)
-        target_port = get_available_output(info, operation->pulse->speaker_port);
-    else
-        target_port = operation->pulse->speaker_port;
+    if (operation->op->type == CAD_OPERATION_SELECT_MODE) {
+        /*
+         * When switching to voice call mode, we want to switch to any port
+         * other than the speaker; this makes sure we use the headphones if they
+         * are connected, and the earpiece otherwise.
+         * When switching back to normal mode, the highest priority port is to
+         * be selected anyway.
+         */
+        if (operation->value == CALL_AUDIO_MODE_CALL)
+            target_port = get_available_output(info, operation->pulse->speaker_port);
+        else
+            target_port = get_available_output(info, NULL);
+    } else {
+        /*
+         * When forcing speaker output, we simply select the speaker port.
+         * When disabling speaker output, we want the highest priority port
+         * other than the speaker, so that we use the headphones if connected,
+         * and the earpiece otherwise.
+         */
+        if (operation->value)
+            target_port = operation->pulse->speaker_port;
+        else
+            target_port = get_available_output(info, operation->pulse->speaker_port);
+    }
 
-    port = info->active_port;
+    g_debug("active port is '%s', target port is '%s'", info->active_port->name, target_port);
 
-    g_debug("active port is '%s', target port is '%s'", port->name, target_port);
-
-    if (strcmp(port->name, target_port) == 0 && !operation->value) {
-        const gchar *available_port = get_available_output(info, target_port);
-        g_debug("target port is in use, switching to '%s'", available_port);
-        if (available_port) {
-            op = pa_context_set_sink_port_by_index(ctx, operation->pulse->sink_id,
-                                                   available_port,
-                                                   operation_complete_cb, operation);
-        }
-    } else if (strcmp(port->name, target_port) != 0 && operation->value) {
+    if (strcmp(info->active_port->name, target_port) != 0) {
         g_debug("switching to target port '%s'", target_port);
         op = pa_context_set_sink_port_by_index(ctx, operation->pulse->sink_id,
                                                target_port,
