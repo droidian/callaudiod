@@ -357,10 +357,14 @@ static void operation_complete_cb(pa_context *ctx, int success, void *data)
     CadPulseOperation *operation = data;
 
     g_debug("operation returned %d", success);
-    operation->op->success = (gboolean)!!success;
-    operation->op->callback(operation->op);
+    if (operation) {
+        if (operation->op) {
+            operation->op->success = (gboolean)!!success;
+            operation->op->callback(operation->op);
+        }
 
-    free(operation);
+        free(operation);
+    }
 }
 
 static void set_card_profile(pa_context *ctx, const pa_card_info *info, int eol, void *data)
@@ -497,6 +501,21 @@ void cad_pulse_select_mode(guint mode, CadOperation *cad_op)
     operation->pulse = cad_pulse_get_default();
     operation->op = cad_op;
     operation->value = mode;
+
+    if (mode != CALL_AUDIO_MODE_CALL) {
+        /*
+         * When ending a call, we want to make sure the mic doesn't stay muted
+         */
+        CadPulseOperation *unmute_op = g_new0(CadPulseOperation, 1);
+
+        unmute_op->pulse = operation->pulse;
+        unmute_op->value = FALSE;
+
+        op = pa_context_get_source_info_by_index(unmute_op->pulse->ctx,
+                                                 unmute_op->pulse->source_id,
+                                                 set_mic_mute, unmute_op);
+        pa_operation_unref(op);
+    }
 
     if (operation->pulse->has_voice_profile) {
         g_debug("card has voice profile, using it");
