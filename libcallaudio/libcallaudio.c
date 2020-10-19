@@ -48,18 +48,19 @@ static gboolean               _initted;
  */
 gboolean call_audio_init(GError **error)
 {
-  if (_initted)
+    if (_initted)
+        return TRUE;
+
+    _proxy = call_audio_dbus_call_audio_proxy_new_for_bus_sync(
+                                    CALLAUDIO_DBUS_TYPE,0, CALLAUDIO_DBUS_NAME,
+                                    CALLAUDIO_DBUS_PATH, NULL, error);
+    if (!_proxy)
+        return FALSE;
+
+    g_object_add_weak_pointer(G_OBJECT(_proxy), (gpointer *)&_proxy);
+
+    _initted = TRUE;
     return TRUE;
-
-  _proxy = call_audio_dbus_call_audio_proxy_new_for_bus_sync(
-      CALLAUDIO_DBUS_TYPE, 0, CALLAUDIO_DBUS_NAME, CALLAUDIO_DBUS_PATH, NULL, error);
-  if (!_proxy)
-    return FALSE;
-
-  g_object_add_weak_pointer(G_OBJECT(_proxy), (gpointer *)&_proxy);
-
-  _initted = TRUE;
-  return TRUE;
 }
 
 /**
@@ -70,8 +71,8 @@ gboolean call_audio_init(GError **error)
  */
 void call_audio_deinit(void)
 {
-  _initted = FALSE;
-  g_clear_object(&_proxy);
+    _initted = FALSE;
+    g_clear_object(&_proxy);
 }
 
 /**
@@ -88,11 +89,10 @@ gboolean call_audio_select_mode(CallAudioMode mode)
     gboolean ret;
     GError *error = NULL;
 
-    ret = call_audio_dbus_call_audio_call_select_mode_sync(_proxy, mode,
-        &result, NULL, &error);
-    if (error) {
+    ret = call_audio_dbus_call_audio_call_select_mode_sync(_proxy, mode, &result,
+                                                           NULL, &error);
+    if (error)
         g_critical("Couldn't set mode: %s", error->message);
-    }
 
     g_debug("SelectMode %s: return %u", ret ? "succeeded" : "failed", result);
 
@@ -113,11 +113,10 @@ gboolean call_audio_enable_speaker(gboolean enable)
     gboolean ret;
     GError *error = NULL;
 
-    ret = call_audio_dbus_call_audio_call_enable_speaker_sync(_proxy, enable,
-        &result, NULL, &error);
-    if (error) {
+    ret = call_audio_dbus_call_audio_call_enable_speaker_sync(_proxy, enable, &result,
+                                                              NULL, &error);
+    if (error)
         g_critical("Couldn't enable speaker: %s", error->message);
-    }
 
     g_debug("EnableSpeaker %s: return %u", ret ? "succeeded" : "failed", result);
 
@@ -138,11 +137,10 @@ gboolean call_audio_mute_mic(gboolean mute)
     gboolean ret;
     GError *error = NULL;
 
-    ret = call_audio_dbus_call_audio_call_mute_mic_sync(_proxy, mute,
-        &result, NULL, &error);
-    if (error) {
+    ret = call_audio_dbus_call_audio_call_mute_mic_sync(_proxy, mute, &result,
+                                                        NULL, &error);
+    if (error)
         g_critical("Couldn't mute mic: %s", error->message);
-    }
 
     g_debug("MuteMic %s: return %u", ret ? "succeeded" : "failed", result);
 
