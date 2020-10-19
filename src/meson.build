@@ -23,6 +23,6 @@ executable (
         'cad-pulse.c', 'cad-pulse.h',
     ],
     dependencies : cad_deps,
-    include_directories : include_directories('..'),
+    include_directories : include_directories('..', '../libcallaudio'),
     install : true
 )

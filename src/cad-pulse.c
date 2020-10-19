@@ -9,6 +9,8 @@
 
 #include "cad-pulse.h"
 
+#include "libcallaudio.h"
+
 #include <glib/gi18n.h>
 #include <glib-object.h>
 #include <pulse/pulseaudio.h>
@@ -39,6 +41,8 @@ struct _CadPulse
 
     gboolean has_voice_profile;
     gchar *speaker_port;
+
+    CallAudioMode current_mode;
 };
 
 G_DEFINE_TYPE(CadPulse, cad_pulse, G_TYPE_OBJECT);
@@ -357,10 +361,16 @@ static void operation_complete_cb(pa_context *ctx, int success, void *data)
     CadPulseOperation *operation = data;
 
     g_debug("operation returned %d", success);
+
     if (operation) {
         if (operation->op) {
             operation->op->success = (gboolean)!!success;
             operation->op->callback(operation->op);
+
+            if (operation->op->type == CAD_OPERATION_SELECT_MODE &&
+                operation->op->success) {
+                operation->pulse->current_mode = operation->value;
+            }
         }
 
         free(operation);
