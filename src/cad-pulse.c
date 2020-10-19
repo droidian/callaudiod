@@ -357,7 +357,7 @@ static void operation_complete_cb(pa_context *ctx, int success, void *data)
     CadPulseOperation *operation = data;
 
     g_debug("operation returned %d", success);
-    operation->op->result = success;
+    operation->op->success = (gboolean)!!success;
     operation->op->callback(operation->op);
 
     free(operation);
@@ -517,7 +517,7 @@ void cad_pulse_select_mode(guint mode, CadOperation *cad_op)
 
 error:
     if (cad_op) {
-        cad_op->result = 0;
+        cad_op->success = FALSE;
         cad_op->callback(cad_op);
     }
     if (operation)
@@ -557,7 +557,7 @@ void cad_pulse_enable_speaker(gboolean enable, CadOperation *cad_op)
 
 error:
     if (cad_op) {
-        cad_op->result = 0;
+        cad_op->success = FALSE;
         cad_op->callback(cad_op);
     }
     if (operation)
@@ -597,7 +597,7 @@ void cad_pulse_mute_mic(gboolean mute, CadOperation *cad_op)
 
 error:
     if (cad_op) {
-        cad_op->result = 0;
+        cad_op->success = FALSE;
         cad_op->callback(cad_op);
     }
     if (operation)

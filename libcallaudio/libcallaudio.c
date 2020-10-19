@@ -85,18 +85,18 @@ void call_audio_deinit(void)
  */
 gboolean call_audio_select_mode(CallAudioMode mode)
 {
-    guint result;
+    gboolean success = FALSE;
     gboolean ret;
     GError *error = NULL;
 
-    ret = call_audio_dbus_call_audio_call_select_mode_sync(_proxy, mode, &result,
+    ret = call_audio_dbus_call_audio_call_select_mode_sync(_proxy, mode, &success,
                                                            NULL, &error);
     if (error)
-        g_critical("Couldn't set mode: %s", error->message);
+        g_critical("Couldn't set mode %u: %s", mode, error->message);
 
-    g_debug("SelectMode %s: return %u", ret ? "succeeded" : "failed", result);
+    g_debug("SelectMode %s: success=%d", ret ? "succeeded" : "failed", success);
 
-    return ret;
+    return (ret && success);
 }
 
 /**
@@ -109,18 +109,19 @@ gboolean call_audio_select_mode(CallAudioMode mode)
  */
 gboolean call_audio_enable_speaker(gboolean enable)
 {
-    guint result;
+    gboolean success;
     gboolean ret;
     GError *error = NULL;
 
-    ret = call_audio_dbus_call_audio_call_enable_speaker_sync(_proxy, enable, &result,
+    ret = call_audio_dbus_call_audio_call_enable_speaker_sync(_proxy, enable, &success,
                                                               NULL, &error);
     if (error)
         g_critical("Couldn't enable speaker: %s", error->message);
 
-    g_debug("EnableSpeaker %s: return %u", ret ? "succeeded" : "failed", result);
+    g_debug("EnableSpeaker %s: success=%d", ret ? "succeeded" : "failed", success);
 
-    return ret;
+    return (ret && success);
+
 }
 
 /**
@@ -133,16 +134,16 @@ gboolean call_audio_enable_speaker(gboolean enable)
  */
 gboolean call_audio_mute_mic(gboolean mute)
 {
-    guint result;
+    gboolean success = FALSE;
     gboolean ret;
     GError *error = NULL;
 
-    ret = call_audio_dbus_call_audio_call_mute_mic_sync(_proxy, mute, &result,
+    ret = call_audio_dbus_call_audio_call_mute_mic_sync(_proxy, mute, &success,
                                                         NULL, &error);
     if (error)
         g_critical("Couldn't mute mic: %s", error->message);
 
-    g_debug("MuteMic %s: return %u", ret ? "succeeded" : "failed", result);
+    g_debug("MuteMic %s: success=%d", ret ? "succeeded" : "failed", success);
 
-    return ret;
+    return (ret && success);
 }
