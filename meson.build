@@ -8,7 +8,7 @@
 project (
   'callaudiod',
   'c',
-  version : '0.0.1',
+  version : '0.0.3',
   license : 'LGPLv3+',
   meson_version : '>= 0.50.0',
   default_options :
@@ -26,8 +26,10 @@ app_name = meson.project_name()
 prefix = get_option('prefix')
 datadir = get_option('datadir')
 sysconfdir = get_option('sysconfdir')
+bindir = join_paths(prefix, get_option('bindir'))
 libdir = join_paths(prefix, get_option('libdir'))
 ifacedir = join_paths(prefix, join_paths(datadir, 'dbus-1', 'interfaces'))
+servicedir = join_paths(prefix, join_paths(datadir, 'dbus-1', 'services'))
 
 if datadir.startswith('/')
   full_datadir = datadir

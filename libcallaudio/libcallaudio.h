@@ -24,11 +24,21 @@ typedef enum _CallAudioMode {
   CALL_AUDIO_MODE_CALL,
 } CallAudioMode;
 
-gboolean                call_audio_init(GError **error);
-void                    call_audio_deinit(void);
+typedef void (*CallAudioCallback)(gboolean success, GError *error);
 
-gboolean                call_audio_select_mode(CallAudioMode mode);
-gboolean                call_audio_enable_speaker(gboolean enable);
-gboolean                call_audio_mute_mic(gboolean mute);
+gboolean call_audio_init(GError **error);
+void     call_audio_deinit(void);
+
+gboolean call_audio_select_mode(CallAudioMode mode);
+void     call_audio_select_mode_async(CallAudioMode     mode,
+                                      CallAudioCallback cb);
+
+gboolean call_audio_enable_speaker(gboolean enable);
+void     call_audio_enable_speaker_async(gboolean          enable,
+                                         CallAudioCallback cb);
+
+gboolean call_audio_mute_mic(gboolean mute);
+void     call_audio_mute_mic_async(gboolean          mute,
+                                   CallAudioCallback cb);
 
 G_END_DECLS

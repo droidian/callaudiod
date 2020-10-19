@@ -24,5 +24,5 @@ struct _CadOperation {
     CallAudioDbusCallAudio *object;
     GDBusMethodInvocation *invocation;
     CadOperationCallback callback;
-    guint result;
+    gboolean success;
 };
