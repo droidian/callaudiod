@@ -60,7 +60,7 @@ static gboolean cad_manager_handle_select_mode(CallAudioDbusCallAudio *object,
         return FALSE;
     }
 
-    op = malloc(sizeof(CadOperation));
+    op = g_new(CadOperation, 1);
     if (!op) {
         g_critical("Unable to allocate memory for select mode operation");
         g_dbus_method_invocation_return_error(invocation, G_DBUS_ERROR,
@@ -85,7 +85,7 @@ static gboolean cad_manager_handle_enable_speaker(CallAudioDbusCallAudio *object
 {
     CadOperation *op;
 
-    op = malloc(sizeof(CadOperation));
+    op = g_new(CadOperation, 1);
     if (!op) {
         g_critical("Unable to allocate memory for speaker operation");
         g_dbus_method_invocation_return_error(invocation, G_DBUS_ERROR,
@@ -110,7 +110,7 @@ static gboolean cad_manager_handle_mute_mic(CallAudioDbusCallAudio *object,
 {
     CadOperation *op;
 
-    op = malloc(sizeof(CadOperation));
+    op = g_new(CadOperation, 1);
     if (!op) {
         g_critical("Unable to allocate memory for mic operation");
         g_dbus_method_invocation_return_error(invocation, G_DBUS_ERROR,

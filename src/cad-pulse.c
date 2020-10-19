@@ -482,7 +482,7 @@ static void set_mic_mute(pa_context *ctx, const pa_source_info *info, int eol, v
 
 void cad_pulse_select_mode(guint mode, CadOperation *cad_op)
 {
-    CadPulseOperation *operation = malloc(sizeof(CadPulseOperation));
+    CadPulseOperation *operation = g_new(CadPulseOperation, 1);
     pa_operation *op = NULL;
 
     if (!cad_op) {
@@ -526,7 +526,7 @@ error:
 
 void cad_pulse_enable_speaker(gboolean enable, CadOperation *cad_op)
 {
-    CadPulseOperation *operation = malloc(sizeof(CadPulseOperation));
+    CadPulseOperation *operation = g_new(CadPulseOperation, 1);
     pa_operation *op = NULL;
 
     if (!cad_op) {
@@ -566,7 +566,7 @@ error:
 
 void cad_pulse_mute_mic(gboolean mute, CadOperation *cad_op)
 {
-    CadPulseOperation *operation = malloc(sizeof(CadPulseOperation));
+    CadPulseOperation *operation = g_new(CadPulseOperation, 1);
     pa_operation *op = NULL;
 
     if (!cad_op) {
