@@ -27,6 +27,9 @@ libcallaudio-0.so.0 libcallaudio-0-0 #MINVER#
  call_audio_dbus_call_audio_skeleton_new@LIBCALLAUDIO_0_0_0 0.0.1
  call_audio_deinit@LIBCALLAUDIO_0_0_0 0.0.1
  call_audio_enable_speaker@LIBCALLAUDIO_0_0_0 0.0.1
+ call_audio_enable_speaker_async@LIBCALLAUDIO_0_0_0 0.0.3
  call_audio_init@LIBCALLAUDIO_0_0_0 0.0.1
  call_audio_mute_mic@LIBCALLAUDIO_0_0_0 0.0.1
+ call_audio_mute_mic_async@LIBCALLAUDIO_0_0_0 0.0.3
  call_audio_select_mode@LIBCALLAUDIO_0_0_0 0.0.1
+ call_audio_select_mode_async@LIBCALLAUDIO_0_0_0 0.0.3
