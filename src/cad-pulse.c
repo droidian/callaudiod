@@ -520,6 +520,12 @@ static void set_mic_mute(pa_context *ctx, const pa_source_info *info, int eol, v
     }
 }
 
+/**
+ * cad_pulse_select_mode:
+ * @mode:
+ * @cad_op:
+ *
+ * */
 void cad_pulse_select_mode(guint mode, CadOperation *cad_op)
 {
     CadPulseOperation *operation = g_new(CadPulseOperation, 1);
@@ -560,6 +566,9 @@ void cad_pulse_select_mode(guint mode, CadOperation *cad_op)
     }
 
     if (operation->pulse->has_voice_profile) {
+      /*
+       * The pinephone f.e. has a voice profile
+       */
         g_debug("card has voice profile, using it");
         op = pa_context_get_card_info_by_index(operation->pulse->ctx,
                                                operation->pulse->card_id,
