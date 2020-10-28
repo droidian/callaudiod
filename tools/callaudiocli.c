@@ -37,13 +37,13 @@ int main (int argc, char *argv[0])
     }
 
     if (mode == CALL_AUDIO_MODE_DEFAULT || mode == CALL_AUDIO_MODE_CALL)
-        call_audio_select_mode(mode);
+        call_audio_select_mode(mode, NULL);
 
     if (speaker == 0 || speaker == 1)
-        call_audio_enable_speaker((gboolean)speaker);
+        call_audio_enable_speaker((gboolean)speaker, NULL);
 
     if (mic == 0 || mic == 1)
-        call_audio_mute_mic((gboolean)mic);
+        call_audio_mute_mic((gboolean)mic, NULL);
 
     call_audio_deinit ();
     return 0;

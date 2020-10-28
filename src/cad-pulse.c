@@ -517,6 +517,11 @@ void cad_pulse_select_mode(guint mode, CadOperation *cad_op)
         goto error;
     }
 
+    /*
+     * Make sure cad_op is of the correct type!
+     */
+    g_assert(cad_op->type == CAD_OPERATION_SELECT_MODE);
+
     operation->pulse = cad_pulse_get_default();
     operation->op = cad_op;
     operation->value = mode;
@@ -576,6 +581,11 @@ void cad_pulse_enable_speaker(gboolean enable, CadOperation *cad_op)
         goto error;
     }
 
+    /*
+     * Make sure cad_op is of the correct type!
+     */
+    g_assert(cad_op->type == CAD_OPERATION_ENABLE_SPEAKER);
+
     operation->pulse = cad_pulse_get_default();
 
     if (operation->pulse->sink_id < 0) {
@@ -615,6 +625,11 @@ void cad_pulse_mute_mic(gboolean mute, CadOperation *cad_op)
         g_critical("%s: unable to allocate memory", __func__);
         goto error;
     }
+
+    /*
+     * Make sure cad_op is of the correct type!
+     */
+    g_assert(cad_op->type == CAD_OPERATION_MUTE_MIC);
 
     operation->pulse = cad_pulse_get_default();
 

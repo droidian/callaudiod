@@ -64,6 +64,19 @@ gboolean call_audio_init(GError **error)
 }
 
 /**
+ * call_audio_is_inited:
+ *
+ * Query whether libcallaudio has been initialized before. This can be used to
+ * ensure library calls will perform actual actions.
+ *
+ * Returns: %TRUE if libcallaudio has been initialized, %FALSE otherwise.
+ */
+gboolean call_audio_is_inited(void)
+{
+    return _initted;
+}
+
+/**
  * call_audio_deinit:
  *
  * Uninitialize the library when no longer used. Usually called
@@ -94,7 +107,7 @@ static void select_mode_done(GObject *object, GAsyncResult *result, gpointer dat
     g_debug("%s: D-bus call returned %d (success=%d)", __func__, ret, success);
 
     if (cb)
-        cb(ret, error);
+        cb(ret && success, error);
 }
 
 /**
@@ -104,10 +117,15 @@ static void select_mode_done(GObject *object, GAsyncResult *result, gpointer dat
  *
  * Select the audio mode to use.
  */
-void call_audio_select_mode_async(CallAudioMode mode, CallAudioCallback cb)
+gboolean call_audio_select_mode_async(CallAudioMode mode, CallAudioCallback cb)
 {
+    if (!_initted)
+        return FALSE;
+
     call_audio_dbus_call_audio_call_select_mode(_proxy, mode, NULL,
                                                 select_mode_done, cb);
+
+    return TRUE;
 }
 
 /**
@@ -119,16 +137,18 @@ void call_audio_select_mode_async(CallAudioMode mode, CallAudioCallback cb)
  *
  * Returns: %TRUE if successful, or %FALSE on error.
  */
-gboolean call_audio_select_mode(CallAudioMode mode)
+gboolean call_audio_select_mode(CallAudioMode mode, GError **error)
 {
-    GError *error = NULL;
     gboolean success = FALSE;
     gboolean ret;
 
+    if (!_initted)
+        return FALSE;
+
     ret = call_audio_dbus_call_audio_call_select_mode_sync(_proxy, mode, &success,
-                                                           NULL, &error);
-    if (error)
-        g_critical("Couldn't set mode %u: %s", mode, error->message);
+                                                           NULL, error);
+    if (error && *error)
+        g_critical("Couldn't set mode %u: %s", mode, (*error)->message);
 
     g_debug("SelectMode %s: success=%d", ret ? "succeeded" : "failed", success);
 
@@ -154,7 +174,7 @@ static void enable_speaker_done(GObject *object, GAsyncResult *result, gpointer 
     g_debug("%s: D-bus call returned %d (success=%d)", __func__, ret, success);
 
     if (cb)
-        cb(ret, error);
+        cb(ret && success, error);
 }
 
 /**
@@ -164,10 +184,15 @@ static void enable_speaker_done(GObject *object, GAsyncResult *result, gpointer 
  *
  * Enable or disable speaker output.
  */
-void call_audio_enable_speaker_async(gboolean enable, CallAudioCallback cb)
+gboolean call_audio_enable_speaker_async(gboolean enable, CallAudioCallback cb)
 {
+    if (!_initted)
+        return FALSE;
+
     call_audio_dbus_call_audio_call_enable_speaker(_proxy, enable, NULL,
                                                    enable_speaker_done, cb);
+
+    return TRUE;
 }
 
 /**
@@ -179,16 +204,18 @@ void call_audio_enable_speaker_async(gboolean enable, CallAudioCallback cb)
  *
  * Returns: %TRUE if successful, or %FALSE on error.
  */
-gboolean call_audio_enable_speaker(gboolean enable)
+gboolean call_audio_enable_speaker(gboolean enable, GError **error)
 {
-    GError *error = NULL;
     gboolean success = FALSE;
     gboolean ret;
 
+    if (!_initted)
+        return FALSE;
+
     ret = call_audio_dbus_call_audio_call_enable_speaker_sync(_proxy, enable, &success,
-                                                              NULL, &error);
-    if (error)
-        g_critical("Couldn't enable speaker: %s", error->message);
+                                                              NULL, error);
+    if (error && *error)
+        g_critical("Couldn't enable speaker: %s", (*error)->message);
 
     g_debug("EnableSpeaker %s: success=%d", ret ? "succeeded" : "failed", success);
 
@@ -213,7 +240,7 @@ static void mute_mic_done(GObject *object, GAsyncResult *result, gpointer data)
     g_debug("%s: D-bus call returned %d (success=%d)", __func__, ret, success);
 
     if (cb)
-        cb(success, error);
+        cb(ret && success, error);
 }
 
 /**
@@ -223,10 +250,15 @@ static void mute_mic_done(GObject *object, GAsyncResult *result, gpointer data)
  *
  * Mute or unmute microphone.
  */
-void call_audio_mute_mic_async(gboolean mute, CallAudioCallback cb)
+gboolean call_audio_mute_mic_async(gboolean mute, CallAudioCallback cb)
 {
+    if (!_initted)
+        return FALSE;
+
     call_audio_dbus_call_audio_call_mute_mic(_proxy, mute, NULL,
                                              mute_mic_done, cb);
+
+    return TRUE;
 }
 
 /**
@@ -238,16 +270,18 @@ void call_audio_mute_mic_async(gboolean mute, CallAudioCallback cb)
  *
  * Returns: %TRUE if successful, or %FALSE on error.
  */
-gboolean call_audio_mute_mic(gboolean mute)
+gboolean call_audio_mute_mic(gboolean mute, GError **error)
 {
-    GError *error = NULL;
     gboolean success = FALSE;
     gboolean ret;
 
+    if (!_initted)
+        return FALSE;
+
     ret = call_audio_dbus_call_audio_call_mute_mic_sync(_proxy, mute, &success,
-                                                        NULL, &error);
-    if (error)
-        g_critical("Couldn't mute mic: %s", error->message);
+                                                        NULL, error);
+    if (error && *error)
+        g_critical("Couldn't mute mic: %s", (*error)->message);
 
     g_debug("MuteMic %s: success=%d", ret ? "succeeded" : "failed", success);
 
