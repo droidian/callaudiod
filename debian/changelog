@@ -1,3 +1,10 @@
+callaudiod (0.0.4-1) unstable; urgency=medium
+
+  * New upstream release 0.0.4
+  * debian: update symbols file
+
+ -- Arnaud Ferraris <arnaud.ferraris@gmail.com>  Wed, 28 Oct 2020 18:45:52 +0100
+
 callaudiod (0.0.3-1) unstable; urgency=medium
 
   * New upstream release 0.0.3
