@@ -107,7 +107,7 @@ static void select_mode_done(GObject *object, GAsyncResult *result, gpointer dat
     g_debug("%s: D-bus call returned %d (success=%d)", __func__, ret, success);
 
     if (cb)
-        cb(ret, error);
+        cb(ret && success, error);
 }
 
 /**
@@ -137,9 +137,8 @@ gboolean call_audio_select_mode_async(CallAudioMode mode, CallAudioCallback cb)
  *
  * Returns: %TRUE if successful, or %FALSE on error.
  */
-gboolean call_audio_select_mode(CallAudioMode mode)
+gboolean call_audio_select_mode(CallAudioMode mode, GError **error)
 {
-    GError *error = NULL;
     gboolean success = FALSE;
     gboolean ret;
 
@@ -147,9 +146,9 @@ gboolean call_audio_select_mode(CallAudioMode mode)
         return FALSE;
 
     ret = call_audio_dbus_call_audio_call_select_mode_sync(_proxy, mode, &success,
-                                                           NULL, &error);
-    if (error)
-        g_critical("Couldn't set mode %u: %s", mode, error->message);
+                                                           NULL, error);
+    if (error && *error)
+        g_critical("Couldn't set mode %u: %s", mode, (*error)->message);
 
     g_debug("SelectMode %s: success=%d", ret ? "succeeded" : "failed", success);
 
@@ -175,7 +174,7 @@ static void enable_speaker_done(GObject *object, GAsyncResult *result, gpointer 
     g_debug("%s: D-bus call returned %d (success=%d)", __func__, ret, success);
 
     if (cb)
-        cb(ret, error);
+        cb(ret && success, error);
 }
 
 /**
@@ -205,9 +204,8 @@ gboolean call_audio_enable_speaker_async(gboolean enable, CallAudioCallback cb)
  *
  * Returns: %TRUE if successful, or %FALSE on error.
  */
-gboolean call_audio_enable_speaker(gboolean enable)
+gboolean call_audio_enable_speaker(gboolean enable, GError **error)
 {
-    GError *error = NULL;
     gboolean success = FALSE;
     gboolean ret;
 
@@ -215,9 +213,9 @@ gboolean call_audio_enable_speaker(gboolean enable)
         return FALSE;
 
     ret = call_audio_dbus_call_audio_call_enable_speaker_sync(_proxy, enable, &success,
-                                                              NULL, &error);
-    if (error)
-        g_critical("Couldn't enable speaker: %s", error->message);
+                                                              NULL, error);
+    if (error && *error)
+        g_critical("Couldn't enable speaker: %s", (*error)->message);
 
     g_debug("EnableSpeaker %s: success=%d", ret ? "succeeded" : "failed", success);
 
@@ -242,7 +240,7 @@ static void mute_mic_done(GObject *object, GAsyncResult *result, gpointer data)
     g_debug("%s: D-bus call returned %d (success=%d)", __func__, ret, success);
 
     if (cb)
-        cb(success, error);
+        cb(ret && success, error);
 }
 
 /**
@@ -272,9 +270,8 @@ gboolean call_audio_mute_mic_async(gboolean mute, CallAudioCallback cb)
  *
  * Returns: %TRUE if successful, or %FALSE on error.
  */
-gboolean call_audio_mute_mic(gboolean mute)
+gboolean call_audio_mute_mic(gboolean mute, GError **error)
 {
-    GError *error = NULL;
     gboolean success = FALSE;
     gboolean ret;
 
@@ -282,9 +279,9 @@ gboolean call_audio_mute_mic(gboolean mute)
         return FALSE;
 
     ret = call_audio_dbus_call_audio_call_mute_mic_sync(_proxy, mute, &success,
-                                                        NULL, &error);
-    if (error)
-        g_critical("Couldn't mute mic: %s", error->message);
+                                                        NULL, error);
+    if (error && *error)
+        g_critical("Couldn't mute mic: %s", (*error)->message);
 
     g_debug("MuteMic %s: success=%d", ret ? "succeeded" : "failed", success);
 
