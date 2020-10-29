@@ -39,12 +39,10 @@
     <xi:include href="xml/libcallaudio.xml"/>
   </chapter>
 
-  <!--
   <chapter id="dbus-interface">
     <title>DBus Interface</title>
-    <xi:include href="../data/org.mobian_project.CallAudio.xml"/>
+    <xi:include href="../data/libcallaudio-org.mobian_project.CallAudio.xml"/>
   </chapter>
-  -->
 
   <index id="api-index-full">
     <title>API Index</title>
