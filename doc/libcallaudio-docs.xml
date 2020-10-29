@@ -34,10 +34,15 @@
 
   </part>
 
-  <!--
   <chapter id="core-api">
     <title>Core API</title>
     <xi:include href="xml/libcallaudio.xml"/>
+  </chapter>
+
+  <!--
+  <chapter id="dbus-interface">
+    <title>DBus Interface</title>
+    <xi:include href="../data/org.mobian_project.CallAudio.xml"/>
   </chapter>
   -->
 
