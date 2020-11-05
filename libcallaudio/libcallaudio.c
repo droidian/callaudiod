@@ -38,6 +38,11 @@
 static CallAudioDbusCallAudio *_proxy;
 static gboolean               _initted;
 
+typedef struct _CallAudioAsyncData {
+    CallAudioCallback cb;
+    gpointer user_data;
+} CallAudioAsyncData;
+
 /**
  * call_audio_init:
  * @error: Error information
@@ -91,7 +96,7 @@ void call_audio_deinit(void)
 static void select_mode_done(GObject *object, GAsyncResult *result, gpointer data)
 {
     CallAudioDbusCallAudio *proxy = CALL_AUDIO_DBUS_CALL_AUDIO(object);
-    CallAudioCallback cb = data;
+    CallAudioAsyncData *async_data = data;
     GError *error = NULL;
     gboolean success = FALSE;
     gboolean ret;
@@ -106,24 +111,32 @@ static void select_mode_done(GObject *object, GAsyncResult *result, gpointer dat
 
     g_debug("%s: D-bus call returned %d (success=%d)", __func__, ret, success);
 
-    if (cb)
-        cb(ret && success, error);
+    if (async_data && async_data->cb)
+        async_data->cb(ret && success, error, async_data->user_data);
 }
 
 /**
  * call_audio_select_mode_async:
  * @mode: Audio mode to select
  * @cb: Function to be called when operation completes
+ * @data: User data to be passed to the callback function after completion
  *
  * Select the audio mode to use.
  */
-gboolean call_audio_select_mode_async(CallAudioMode mode, CallAudioCallback cb)
+gboolean call_audio_select_mode_async(CallAudioMode     mode,
+                                      CallAudioCallback cb,
+                                      gpointer          data)
 {
-    if (!_initted)
+    CallAudioAsyncData *async_data = g_new0(CallAudioAsyncData, 1);
+
+    if (!_initted || !async_data)
         return FALSE;
 
+    async_data->cb = cb;
+    async_data->user_data = data;
+
     call_audio_dbus_call_audio_call_select_mode(_proxy, mode, NULL,
-                                                select_mode_done, cb);
+                                                select_mode_done, async_data);
 
     return TRUE;
 }
@@ -159,7 +172,7 @@ gboolean call_audio_select_mode(CallAudioMode mode, GError **error)
 static void enable_speaker_done(GObject *object, GAsyncResult *result, gpointer data)
 {
     CallAudioDbusCallAudio *proxy = CALL_AUDIO_DBUS_CALL_AUDIO(object);
-    CallAudioCallback cb = data;
+    CallAudioAsyncData *async_data = data;
     GError *error = NULL;
     gboolean success = FALSE;
     gboolean ret;
@@ -174,24 +187,32 @@ static void enable_speaker_done(GObject *object, GAsyncResult *result, gpointer 
 
     g_debug("%s: D-bus call returned %d (success=%d)", __func__, ret, success);
 
-    if (cb)
-        cb(ret && success, error);
+    if (async_data && async_data->cb)
+        async_data->cb(ret && success, error, async_data->user_data);
 }
 
 /**
  * call_audio_enable_speaker_async:
  * @enable: Desired speaker state
  * @cb: Function to be called when operation completes
+ * @data: User data to be passed to the callback function after completion
  *
  * Enable or disable speaker output.
  */
-gboolean call_audio_enable_speaker_async(gboolean enable, CallAudioCallback cb)
+gboolean call_audio_enable_speaker_async(gboolean          enable,
+                                         CallAudioCallback cb,
+                                         gpointer          data)
 {
-    if (!_initted)
+    CallAudioAsyncData *async_data = g_new0(CallAudioAsyncData, 1);
+
+    if (!_initted || !async_data)
         return FALSE;
 
+    async_data->cb = cb;
+    async_data->user_data = data;
+
     call_audio_dbus_call_audio_call_enable_speaker(_proxy, enable, NULL,
-                                                   enable_speaker_done, cb);
+                                                   enable_speaker_done, async_data);
 
     return TRUE;
 }
@@ -227,7 +248,7 @@ gboolean call_audio_enable_speaker(gboolean enable, GError **error)
 static void mute_mic_done(GObject *object, GAsyncResult *result, gpointer data)
 {
     CallAudioDbusCallAudio *proxy = CALL_AUDIO_DBUS_CALL_AUDIO(object);
-    CallAudioCallback cb = data;
+    CallAudioAsyncData *async_data = data;
     GError *error = NULL;
     gboolean success = 0;
     gboolean ret;
@@ -241,24 +262,32 @@ static void mute_mic_done(GObject *object, GAsyncResult *result, gpointer data)
 
     g_debug("%s: D-bus call returned %d (success=%d)", __func__, ret, success);
 
-    if (cb)
-        cb(ret && success, error);
+    if (async_data && async_data->cb)
+        async_data->cb(ret && success, error, async_data->user_data);
 }
 
 /**
  * call_audio_mute_mic_async:
  * @mute: %TRUE to mute the microphone, or %FALSE to unmute it
  * @cb: Function to be called when operation completes
+ * @data: User data to be passed to the callback function after completion
  *
  * Mute or unmute microphone.
  */
-gboolean call_audio_mute_mic_async(gboolean mute, CallAudioCallback cb)
+gboolean call_audio_mute_mic_async(gboolean          mute,
+                                   CallAudioCallback cb,
+                                   gpointer          data)
 {
-    if (!_initted)
+    CallAudioAsyncData *async_data = g_new0(CallAudioAsyncData, 1);
+
+    if (!_initted || !async_data)
         return FALSE;
 
+    async_data->cb = cb;
+    async_data->user_data = data;
+
     call_audio_dbus_call_audio_call_mute_mic(_proxy, mute, NULL,
-                                             mute_mic_done, cb);
+                                             mute_mic_done, async_data);
 
     return TRUE;
 }
