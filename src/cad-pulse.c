@@ -547,7 +547,12 @@ void cad_pulse_select_mode(guint mode, CadOperation *cad_op)
                                                operation->pulse->card_id,
                                                set_card_profile, operation);
     } else {
+        if (operation->pulse->sink_id < 0) {
+            g_warning("card has no voice profile and no usable sink");
+            goto error;
+        }
         g_debug("card doesn't have voice profile, switching output port");
+
         op = pa_context_get_sink_info_by_index(operation->pulse->ctx,
                                                operation->pulse->sink_id,
                                                set_output_port, operation);
