@@ -140,11 +140,13 @@ static void init_source_info(pa_context *ctx, const pa_source_info *info, int eo
 {
     CadPulse *self = data;
 
-    if (eol == 1)
+    if (eol != 0)
         return;
 
-    if (!info)
-        g_error("PA returned no source info (eol=%d)", eol);
+    if (!info) {
+        g_critical("PA returned no source info (eol=%d)", eol);
+        return;
+    }
 
     process_new_source(self, info);
 }
@@ -153,11 +155,13 @@ static void init_sink_info(pa_context *ctx, const pa_sink_info *info, int eol, v
 {
     CadPulse *self = data;
 
-    if (eol == 1)
+    if (eol != 0)
         return;
 
-    if (!info)
-        g_error("PA returned no sink info (eol=%d)", eol);
+    if (!info) {
+        g_critical("PA returned no sink info (eol=%d)", eol);
+        return;
+    }
 
     process_new_sink(self, info);
 }
@@ -168,11 +172,13 @@ static void init_card_info(pa_context *ctx, const pa_card_info *info, int eol, v
     const gchar *prop;
     guint i;
 
-    if (eol == 1)
+    if (eol != 0)
         return;
 
-    if (!info)
-        g_error("PA returned no card info (eol=%d)", eol);
+    if (!info) {
+        g_critical("PA returned no card info (eol=%d)", eol);
+        return;
+    }
 
     prop = pa_proplist_gets(info->proplist, PA_PROP_DEVICE_BUS_PATH);
     if (prop && strcmp(prop, CARD_BUS_PATH) != 0)
@@ -207,11 +213,14 @@ static void init_cards_list(CadPulse *self)
     self->card_id = self->sink_id = self->source_id = -1;
 
     op = pa_context_get_card_info_list(self->ctx, init_card_info, self);
-    pa_operation_unref(op);
+    if (op)
+        pa_operation_unref(op);
     op = pa_context_get_sink_info_list(self->ctx, init_sink_info, self);
-    pa_operation_unref(op);
+    if (op)
+        pa_operation_unref(op);
     op = pa_context_get_source_info_list(self->ctx, init_source_info, self);
-    pa_operation_unref(op);
+    if (op)
+        pa_operation_unref(op);
 }
 
 static void changed_cb(pa_context *ctx, pa_subscription_event_type_t type, uint32_t idx, void *data)
@@ -228,7 +237,8 @@ static void changed_cb(pa_context *ctx, pa_subscription_event_type_t type, uint3
         } else if (kind == PA_SUBSCRIPTION_EVENT_NEW) {
             g_debug("new sink %u", idx);
             op = pa_context_get_sink_info_by_index(ctx, idx, init_sink_info, self);
-            pa_operation_unref(op);
+            if (op)
+                pa_operation_unref(op);
         }
         break;
     case PA_SUBSCRIPTION_EVENT_SOURCE:
@@ -238,7 +248,8 @@ static void changed_cb(pa_context *ctx, pa_subscription_event_type_t type, uint3
         } else if (kind == PA_SUBSCRIPTION_EVENT_NEW) {
             g_debug("new sink %u", idx);
             op = pa_context_get_source_info_by_index(ctx, idx, init_source_info, self);
-            pa_operation_unref(op);
+            if (op)
+                pa_operation_unref(op);
         }
         break;
     default:
@@ -383,11 +394,13 @@ static void set_card_profile(pa_context *ctx, const pa_card_info *info, int eol,
     pa_card_profile_info2 *profile;
     pa_operation *op = NULL;
 
-    if (eol == 1)
+    if (eol != 0)
         return;
 
-    if (!info)
-        g_error("PA returned no card info (eol=%d)", eol);
+    if (!info) {
+        g_critical("PA returned no card info (eol=%d)", eol);
+        return;
+    }
 
     if (info->index != operation->pulse->card_id)
         return;
@@ -420,11 +433,13 @@ static void set_output_port(pa_context *ctx, const pa_sink_info *info, int eol, 
     pa_operation *op = NULL;
     const gchar *target_port;
 
-    if (eol == 1)
+    if (eol != 0)
         return;
 
-    if (!info)
-        g_error("PA returned no sink info (eol=%d)", eol);
+    if (!info) {
+        g_critical("PA returned no sink info (eol=%d)", eol);
+        return;
+    }
 
     if (info->card != operation->pulse->card_id || info->index != operation->pulse->sink_id)
         return;
@@ -476,11 +491,13 @@ static void set_mic_mute(pa_context *ctx, const pa_source_info *info, int eol, v
     CadPulseOperation *operation = data;
     pa_operation *op = NULL;
 
-    if (eol == 1)
+    if (eol != 0)
         return;
 
-    if (!info)
-        g_error("PA returned no source info (eol=%d)", eol);
+    if (!info) {
+        g_critical("PA returned no source info (eol=%d)", eol);
+        return;
+    }
 
     if (info->card != operation->pulse->card_id || info->index != operation->pulse->source_id)
         return;
@@ -538,7 +555,8 @@ void cad_pulse_select_mode(guint mode, CadOperation *cad_op)
         op = pa_context_get_source_info_by_index(unmute_op->pulse->ctx,
                                                  unmute_op->pulse->source_id,
                                                  set_mic_mute, unmute_op);
-        pa_operation_unref(op);
+        if (op)
+            pa_operation_unref(op);
     }
 
     if (operation->pulse->has_voice_profile) {
@@ -604,7 +622,8 @@ void cad_pulse_enable_speaker(gboolean enable, CadOperation *cad_op)
     op = pa_context_get_sink_info_by_index(operation->pulse->ctx,
                                            operation->pulse->sink_id,
                                            set_output_port, operation);
-    pa_operation_unref(op);
+    if (op)
+        pa_operation_unref(op);
 
     return;
 
@@ -649,7 +668,8 @@ void cad_pulse_mute_mic(gboolean mute, CadOperation *cad_op)
     op = pa_context_get_source_info_by_index(operation->pulse->ctx,
                                              operation->pulse->source_id,
                                              set_mic_mute, operation);
-    pa_operation_unref(op);
+    if (op)
+        pa_operation_unref(op);
 
     return;
 
