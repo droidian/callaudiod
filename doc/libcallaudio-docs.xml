@@ -32,8 +32,6 @@
   <part>
   <title>API Reference</title>
 
-  </part>
-
   <chapter id="core-api">
     <title>Core API</title>
     <xi:include href="xml/libcallaudio.xml"/>
@@ -43,6 +41,8 @@
     <title>DBus Interface</title>
     <xi:include href="../data/libcallaudio-org.mobian_project.CallAudio.xml"/>
   </chapter>
+
+  </part>
 
   <index id="api-index-full">
     <title>API Index</title>
