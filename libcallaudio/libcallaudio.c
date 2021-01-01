@@ -131,6 +131,7 @@ gboolean call_audio_select_mode_async(CallAudioMode mode, CallAudioCallback cb)
 /**
  * call_audio_select_mode:
  * @mode: Audio mode to select
+ * @error: The error that will be set if the audio mode could not be selected.
  *
  * Select the audio mode to use. This function is synchronous, and will return
  * only once the operation has been executed.
@@ -198,6 +199,7 @@ gboolean call_audio_enable_speaker_async(gboolean enable, CallAudioCallback cb)
 /**
  * call_audio_enable_speaker:
  * @enable: Desired speaker state
+ * @error: The error that will be set if the audio mode could not be selected.
  *
  * Enable or disable speaker output. This function is synchronous, and will
  * return only once the operation has been executed.
@@ -264,6 +266,7 @@ gboolean call_audio_mute_mic_async(gboolean mute, CallAudioCallback cb)
 /**
  * call_audio_mute_mic:
  * @mute: %TRUE to mute the microphone, or %FALSE to unmute it
+ * @error: The error that will be set if the audio mode could not be selected.
  *
  * Mute or unmute microphone. This function is synchronous, and will return
  * only once the operation has been executed.
