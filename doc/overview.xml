@@ -58,13 +58,6 @@
 	the package name.
       </para>
 
-      <para>
-	When using the Meson build system you can declare a dependency like
-      </para>
-      <informalexample><programlisting>
-	dependency('libcallaudio-0')
-      </programlisting></informalexample>
-
     </simplesect>
 
   </chapter>
