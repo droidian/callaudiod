@@ -28,8 +28,9 @@ libcallaudio_deps = [
 
 libcallaudio_c_args = [
   '-DG_LOG_DOMAIN="libcallaudio"',
-  '-I../src',
 ]
+
+libcallaudio_inc = include_directories('.', '../src')
 
 libtype = 'shared_library'
 libcallaudio = build_target(
@@ -37,6 +38,7 @@ libcallaudio = build_target(
   libcallaudio_sources,
             soversion : 0,
                c_args : libcallaudio_c_args,
+  include_directories : libcallaudio_inc,
          dependencies : libcallaudio_deps,
             link_args : libcallaudio_link_args,
               install : true,
@@ -44,7 +46,6 @@ libcallaudio = build_target(
           target_type : libtype,
 )
 
-libcallaudio_inc = include_directories('.')
 libcallaudio_dep = declare_dependency(
   sources : [generated_dbus_sources],
   link_with : libcallaudio,
