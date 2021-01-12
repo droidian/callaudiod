@@ -1,3 +1,15 @@
+callaudiod (0.0.5-1) unstable; urgency=medium
+
+  [ Guido Günther ]
+  * d/gbp.conf: Set upstream branch.
+
+  [ Arnaud Ferraris ]
+  * New upstream version 0.0.5
+  * debian: propagate API version bump
+  * debian: create and build documentation package
+
+ -- Arnaud Ferraris <arnaud.ferraris@gmail.com>  Tue, 12 Jan 2021 18:01:35 +0100
+
 callaudiod (0.0.4-1) unstable; urgency=medium
 
   * New upstream release 0.0.4
