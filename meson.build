@@ -43,7 +43,7 @@ else
   full_sysconfdir = join_paths(prefix, sysconfdir)
 endif
 
-apiversion = '0'
+apiversion = '0.1'
 libname = 'libcallaudio-' + apiversion
 
 config_data = configuration_data()
