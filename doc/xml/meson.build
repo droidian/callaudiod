@@ -1,0 +1,11 @@
+ent_conf = configuration_data()
+ent_conf.set('PACKAGE', 'libcallaudio')
+ent_conf.set('PACKAGE_BUGREPORT', 'https://gitlab.com/mobian1/callaudiod/issues')
+ent_conf.set('PACKAGE_NAME', 'libcallaudio')
+ent_conf.set('PACKAGE_STRING', 'libcallaudio')
+ent_conf.set('PACKAGE_TARNAME', 'libcallaudio-' + meson.project_version())
+ent_conf.set('PACKAGE_URL', 'https://gitlab.com/mobian1/callaudiod')
+ent_conf.set('PACKAGE_VERSION', meson.project_version())
+ent_conf.set('PACKAGE_API_VERSION', apiversion)
+configure_file(input: 'gtkdocentities.ent.in', output: 'gtkdocentities.ent', configuration: ent_conf)
+
