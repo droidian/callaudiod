@@ -8,7 +8,7 @@
 project (
   'callaudiod',
   'c',
-  version : '0.0.4',
+  version : '0.0.5',
   license : 'LGPLv3+',
   meson_version : '>= 0.50.0',
   default_options :
@@ -43,7 +43,7 @@ else
   full_sysconfdir = join_paths(prefix, sysconfdir)
 endif
 
-apiversion = '0'
+apiversion = '0.1'
 libname = 'libcallaudio-' + apiversion
 
 config_data = configuration_data()
