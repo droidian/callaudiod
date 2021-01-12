@@ -5,5 +5,8 @@ export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 %:
 	dh $@ --builddirectory=_build
 
+override_dh_auto_configure:
+	dh_auto_configure -- -Dgtk_doc=true
+
 override_dh_makeshlibs:
 	dh_makeshlibs --package=libcallaudio-0-1 -- -c2
