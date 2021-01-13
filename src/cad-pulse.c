@@ -28,6 +28,19 @@
 #define CARD_FORM_FACTOR "internal"
 #define CARD_MODEM_CLASS "modem"
 
+#define WITH_DROID_SUPPORT 1 /* FIXME: wire into meson */
+
+#ifdef WITH_DROID_SUPPORT
+#define DROID_API_NAME "droid-hal"
+#define DROID_PROFILE_HIFI "default"
+#define DROID_PROFILE_VOICECALL "voicecall"
+#define DROID_OUTPUT_PORT_PARKING "output-parking"
+#define DROID_OUTPUT_PORT_SPEAKER "output-speaker"
+#define DROID_INPUT_PORT_PARKING "input-parking"
+#define DROID_INPUT_PORT_BUILTIN_MIC "input-builtin_mic"
+#define DROID_INPUT_PORT_WIRED_HEADSET_MIC "input-wired_headset"
+#endif /* WITH_DROID_SUPPORT */
+
 struct _CadPulse
 {
     GObject parent_instance;
@@ -38,6 +51,11 @@ struct _CadPulse
     int card_id;
     int sink_id;
     int source_id;
+
+#ifdef WITH_DROID_SUPPORT
+    gboolean sink_is_droid;
+    gboolean source_is_droid;
+#endif /* WITH_DROID_SUPPORT */
 
     gboolean has_voice_profile;
     gchar *speaker_port;
@@ -52,6 +70,11 @@ typedef struct _CadPulseOperation {
     CadOperation *op;
     guint value;
 } CadPulseOperation;
+
+#ifdef WITH_DROID_SUPPORT
+static void set_output_port(pa_context *ctx, const pa_sink_info *info, int eol, void *data);
+static void set_input_port(pa_context *ctx, const pa_source_info *info, int eol, void *data);
+#endif /* WITH_DROID_SUPPORT */
 
 static const gchar *get_available_output(const pa_sink_info *sink, const gchar *exclude)
 {
@@ -82,6 +105,58 @@ static const gchar *get_available_output(const pa_sink_info *sink, const gchar *
     return NULL;
 }
 
+static const gchar *get_best_input(const pa_source_info *source, gboolean source_is_droid)
+{
+    /*
+     * get_best_input() works a bit differently than get_available_output():
+     *
+     * On droid, the input is chosen between the builtin_mic and the
+     * wired_headset mic if available.
+     *
+     * On native devices the mic with the highest priority gets
+     * chosen.
+    */
+
+    pa_source_port_info *available_port = NULL;
+    guint i;
+
+    g_debug("Looking for available input port");
+
+    for (i = 0; i < source->n_ports; i++) {
+        pa_source_port_info *port = source->ports[i];
+
+        if (port->available == PA_PORT_AVAILABLE_NO)
+            continue;
+
+#ifdef WITH_DROID_SUPPORT
+        if (source_is_droid) {
+            if (strcmp(port->name, DROID_INPUT_PORT_WIRED_HEADSET_MIC) == 0) {
+                /* wired_headset is the preferred one */
+                available_port = port;
+                break;
+            } else if (strcmp(port->name, DROID_INPUT_PORT_BUILTIN_MIC) == 0) {
+                /* builtin mic */
+                available_port = port;
+            }
+        } else if (!available_port || port->priority > available_port->priority) {
+            available_port = port;
+        }
+#else
+        if (!available_port || port->priority > available_port->priority)
+            available_port = port;
+#endif /* WITH_DROID_SUPPORT */
+    }
+
+    if (available_port) {
+        g_debug("found available input port '%s'", available_port->name);
+        return available_port->name;
+    }
+    
+    g_warning("no available input port found!");
+
+    return NULL;
+}
+
 static void process_new_source(CadPulse *self, const pa_source_info *info)
 {
     const gchar *prop;
@@ -94,6 +169,11 @@ static void process_new_source(CadPulse *self, const pa_source_info *info)
 
     self->source_id = info->index;
 
+#ifdef WITH_DROID_SUPPORT
+    prop = pa_proplist_gets(info->proplist, PA_PROP_DEVICE_API);
+    self->source_is_droid = (prop && strcmp(prop, DROID_API_NAME) == 0);
+#endif /* WITH_DROID_SUPPORT */
+
     g_debug("SOURCE: idx=%u name='%s'", info->index, info->name);
 }
 
@@ -104,7 +184,12 @@ static void process_sink_ports(CadPulse *self, const pa_sink_info *info)
     for (i = 0; i < info->n_ports; i++) {
         pa_sink_port_info *port = info->ports[i];
 
+#ifdef WITH_DROID_SUPPORT
+        if ((self->sink_is_droid && strcmp(port->name, DROID_OUTPUT_PORT_SPEAKER) == 0) ||
+            (!self->sink_is_droid && strstr(port->name, SND_USE_CASE_DEV_SPEAKER) != 0)) {
+#else
         if (strstr(port->name, SND_USE_CASE_DEV_SPEAKER) != NULL) {
+#endif /* WITH_DROID_SUPPORT */
             if (self->speaker_port) {
                 if (strcmp(port->name, self->speaker_port) != 0) {
                     g_free(self->speaker_port);
@@ -130,6 +215,11 @@ static void process_new_sink(CadPulse *self, const pa_sink_info *info)
         return;
 
     self->sink_id = info->index;
+
+#ifdef WITH_DROID_SUPPORT
+    prop = pa_proplist_gets(info->proplist, PA_PROP_DEVICE_API);
+    self->sink_is_droid = (prop && strcmp(prop, DROID_API_NAME) == 0);
+#endif /* WITH_DROID_SUPPORT */
 
     g_debug("SINK: idx=%u name='%s'", info->index, info->name);
 
@@ -191,7 +281,11 @@ static void init_card_info(pa_context *ctx, const pa_card_info *info, int eol, v
     for (i = 0; i < info->n_profiles; i++) {
         pa_card_profile_info2 *profile = info->profiles2[i];
 
+#ifdef WITH_DROID_SUPPORT
+        if (strstr(profile->name, SND_USE_CASE_VERB_VOICECALL) != NULL || strstr(profile->name, DROID_PROFILE_VOICECALL) != NULL) {
+#else
         if (strstr(profile->name, SND_USE_CASE_VERB_VOICECALL) != NULL) {
+#endif /* WITH_DROID_SUPPORT */
             self->has_voice_profile = TRUE;
             break;
         }
@@ -377,11 +471,102 @@ static void operation_complete_cb(pa_context *ctx, int success, void *data)
     }
 }
 
+#ifdef WITH_DROID_SUPPORT
+static void droid_source_parked_complete_cb(pa_context *ctx, int success, void *data)
+{
+    /*
+     * Callback fired when the source parking happened. We can now actually
+     * change the output port.
+    */
+
+    CadPulseOperation *operation = data;
+    pa_operation *op = NULL;
+
+    g_debug("droid: parking succeeded, setting real output port");
+
+    op = pa_context_get_sink_info_by_index(operation->pulse->ctx,
+                                           operation->pulse->sink_id,
+                                           set_output_port, data);
+
+    if (op)
+        pa_operation_unref(op);
+
+}
+    
+static void droid_sink_parked_complete_cb(pa_context *ctx, int success, void *data)
+{
+    /*
+     * Callback fired when the sink parking happened. We can then park
+     * the source too.
+    */
+
+    CadPulseOperation *operation = data;
+    pa_operation *op = NULL;
+
+    g_debug("droid: parking input to trigger mode change");
+
+    op = pa_context_set_source_port_by_index(ctx, operation->pulse->source_id,
+                                            DROID_INPUT_PORT_PARKING,
+                                            droid_source_parked_complete_cb, data);
+
+    if (op)
+        pa_operation_unref(op);
+
+}
+
+static void droid_mode_change_complete_cb(pa_context *ctx, int success, void *data)
+{
+    /*
+     * Android HAL switches modes once the next routing change happens.
+     * Thus, we need to "park" the sink/source before switching to the
+     * actual port.
+     *
+     * pulseaudio-modules-droid provides the input-parking and output-parking
+     * ports to accomplish that.
+     *
+     * It's one more step that needs to be done only on droid devices.
+    */
+
+    CadPulseOperation *operation = data;
+    pa_operation *op = NULL;
+
+    if (!operation->pulse->sink_is_droid)
+        return operation_complete_cb(ctx, success, data);
+
+    g_debug("droid: parking output to trigger mode change");
+
+    op = pa_context_set_sink_port_by_index(ctx, operation->pulse->sink_id,
+                                           DROID_OUTPUT_PORT_PARKING,
+                                           droid_sink_parked_complete_cb,
+                                           operation);
+    if (op)
+        pa_operation_unref(op);
+}
+
+static void droid_output_port_change_complete_cb(pa_context *ctx, int success, void *data)
+{
+    CadPulseOperation *operation = data;
+    pa_operation *op = NULL;
+
+    g_debug("droid: setting real input port");
+
+    op = pa_context_get_source_info_by_index(operation->pulse->ctx,
+                                           operation->pulse->source_id,
+                                           set_input_port, operation);
+
+    if (op)
+        pa_operation_unref(op);
+}
+#endif /* WITH_DROID_SUPPORT */
+
 static void set_card_profile(pa_context *ctx, const pa_card_info *info, int eol, void *data)
 {
     CadPulseOperation *operation = data;
     pa_card_profile_info2 *profile;
     pa_operation *op = NULL;
+    gchar *default_profile;
+    gchar *voicecall_profile;
+    pa_context_success_cb_t complete_callback;
 
     if (eol == 1)
         return;
@@ -392,18 +577,32 @@ static void set_card_profile(pa_context *ctx, const pa_card_info *info, int eol,
     if (info->index != operation->pulse->card_id)
         return;
 
+#ifdef WITH_DROID_SUPPORT
+    default_profile = operation->pulse->sink_is_droid ?
+                          DROID_PROFILE_HIFI :
+                          SND_USE_CASE_VERB_HIFI;
+    voicecall_profile = operation->pulse->sink_is_droid ?
+                            DROID_PROFILE_VOICECALL :
+                            SND_USE_CASE_VERB_VOICECALL;
+    complete_callback = droid_mode_change_complete_cb;
+#else
+    default_profile = SND_USE_CASE_VERB_HIFI;
+    voicecall_profile = SND_USE_CASE_VERB_VOICECALL;
+    complete_callback = operation_complete_cb;
+#endif /* WITH_DROID_SUPPORT */
+
     profile = info->active_profile2;
 
-    if (strcmp(profile->name, SND_USE_CASE_VERB_VOICECALL) == 0 && operation->value == 0) {
+    if (strcmp(profile->name, voicecall_profile) == 0 && operation->value == 0) {
         g_debug("switching to default profile");
         op = pa_context_set_card_profile_by_index(ctx, operation->pulse->card_id,
-                                                  SND_USE_CASE_VERB_HIFI,
-                                                  operation_complete_cb, operation);
-    } else if (strcmp(profile->name, SND_USE_CASE_VERB_HIFI) == 0 && operation->value == 1) {
+                                                  default_profile,
+                                                  complete_callback, operation);
+    } else if (strcmp(profile->name, default_profile) == 0 && operation->value == 1) {
         g_debug("switching to voice profile");
         op = pa_context_set_card_profile_by_index(ctx, operation->pulse->card_id,
-                                                  SND_USE_CASE_VERB_VOICECALL,
-                                                  operation_complete_cb, operation);
+                                                  voicecall_profile,
+                                                  complete_callback, operation);
     }
 
     if (op) {
@@ -419,6 +618,13 @@ static void set_output_port(pa_context *ctx, const pa_sink_info *info, int eol, 
     CadPulseOperation *operation = data;
     pa_operation *op = NULL;
     const gchar *target_port;
+    pa_context_success_cb_t complete_callback;
+
+#ifdef WITH_DROID_SUPPORT
+    complete_callback = droid_output_port_change_complete_cb;
+#else
+    complete_callback = operation_complete_cb;
+#endif
 
     if (eol == 1)
         return;
@@ -460,7 +666,45 @@ static void set_output_port(pa_context *ctx, const pa_sink_info *info, int eol, 
         g_debug("switching to target port '%s'", target_port);
         op = pa_context_set_sink_port_by_index(ctx, operation->pulse->sink_id,
                                                target_port,
-                                               operation_complete_cb, operation);
+                                               complete_callback, operation);
+    }
+
+    if (op) {
+        pa_operation_unref(op);
+    } else {
+        g_debug("%s: nothing to be done", __func__);
+        operation_complete_cb(ctx, 1, operation);
+    }
+}
+
+static void set_input_port(pa_context *ctx, const pa_source_info *info, int eol, void *data)
+{
+    CadPulseOperation *operation = data;
+    pa_operation *op = NULL;
+    const gchar *target_port;
+
+    if (eol == 1)
+        return;
+
+    if (!info)
+        g_error("PA returned no source info (eol=%d)", eol);
+
+    if (info->card != operation->pulse->card_id || info->index != operation->pulse->source_id)
+        return;
+
+#ifdef WITH_DROID_SUPPORT
+    target_port = get_best_input(info, operation->pulse->source_is_droid);
+#else
+    target_port = get_best_input(info, false);
+#endif
+
+    g_debug("active source port is '%s', target source port is '%s'", info->active_port->name, target_port);
+
+    if (strcmp(info->active_port->name, target_port) != 0) {
+        g_debug("switching to target source port '%s'", target_port);
+        op = pa_context_set_source_port_by_index(ctx, operation->pulse->source_id,
+                                                 target_port,
+                                                 operation_complete_cb, operation);
     }
 
     if (op) {
