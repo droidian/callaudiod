@@ -74,6 +74,7 @@ Architecture: all
 Section: doc
 Depends:
  ${misc:Depends}
+Suggests: devhelp
 Description: Development files for libcallaudio
  callaudiod is a daemon for dealing with audio routing during phone calls.
  It provides a D-Bus interface allowing other programs to:
