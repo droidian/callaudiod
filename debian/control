@@ -71,7 +71,7 @@ Description: Development files for libcallaudio
 
 Package: libcallaudio-doc
 Architecture: all
-Section: libdevel
+Section: doc
 Depends:
  libcallaudio-0-1 (= ${binary:Version}),
  libglib2.0-dev,
