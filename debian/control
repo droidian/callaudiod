@@ -73,9 +73,7 @@ Package: libcallaudio-doc
 Architecture: all
 Section: doc
 Depends:
- libcallaudio-0-1 (= ${binary:Version}),
- libglib2.0-dev,
- ${misc:Depends},
+ ${misc:Depends}
 Description: Development files for libcallaudio
  callaudiod is a daemon for dealing with audio routing during phone calls.
  It provides a D-Bus interface allowing other programs to:
