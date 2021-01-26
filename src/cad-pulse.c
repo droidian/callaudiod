@@ -42,6 +42,9 @@ struct _CadPulse
     gboolean has_voice_profile;
     gchar *speaker_port;
 
+    GHashTable *sink_ports;
+    GHashTable *source_ports;
+
     CallAudioMode current_mode;
 };
 
@@ -85,6 +88,7 @@ static const gchar *get_available_output(const pa_sink_info *sink, const gchar *
 static void process_new_source(CadPulse *self, const pa_source_info *info)
 {
     const gchar *prop;
+    int i;
 
     prop = pa_proplist_gets(info->proplist, PA_PROP_DEVICE_CLASS);
     if (prop && strcmp(prop, SINK_CLASS) != 0)
@@ -93,6 +97,19 @@ static void process_new_source(CadPulse *self, const pa_source_info *info)
         return;
 
     self->source_id = info->index;
+    if (self->source_ports)
+        g_hash_table_destroy(self->source_ports);
+    self->source_ports = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+
+    for (i = 0; i < info->n_ports; i++) {
+        pa_source_port_info *port = info->ports[i];
+
+        if (port->available != PA_PORT_AVAILABLE_UNKNOWN) {
+            g_hash_table_insert (self->source_ports,
+                                 g_strdup(port->name),
+                                 GINT_TO_POINTER(port->available));
+        }
+    }
 
     g_debug("SOURCE: idx=%u name='%s'", info->index, info->name);
 }
@@ -114,6 +131,12 @@ static void process_sink_ports(CadPulse *self, const pa_sink_info *info)
                 self->speaker_port = g_strdup(port->name);
             }
         }
+
+        if (port->available != PA_PORT_AVAILABLE_UNKNOWN) {
+            g_hash_table_insert (self->sink_ports,
+                                 g_strdup(port->name),
+                                 GINT_TO_POINTER(port->available));
+        }
     }
 
     g_debug("SINK:   speaker_port='%s'", self->speaker_port);
@@ -130,6 +153,9 @@ static void process_new_sink(CadPulse *self, const pa_sink_info *info)
         return;
 
     self->sink_id = info->index;
+    if (self->sink_ports)
+        g_hash_table_destroy(self->sink_ports);
+    self->sink_ports = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
 
     g_debug("SINK: idx=%u name='%s'", info->index, info->name);
 
@@ -211,6 +237,7 @@ static void init_cards_list(CadPulse *self)
     pa_operation *op;
 
     self->card_id = self->sink_id = self->source_id = -1;
+    self->sink_ports = self->source_ports = NULL;
 
     op = pa_context_get_card_info_list(self->ctx, init_card_info, self);
     if (op)
@@ -234,6 +261,8 @@ static void changed_cb(pa_context *ctx, pa_subscription_event_type_t type, uint3
         if (idx == self->sink_id && kind == PA_SUBSCRIPTION_EVENT_REMOVE) {
             g_debug("sink %u removed", idx);
             self->sink_id = -1;
+            g_hash_table_destroy(self->sink_ports);
+            self->sink_ports = NULL;
         } else if (kind == PA_SUBSCRIPTION_EVENT_NEW) {
             g_debug("new sink %u", idx);
             op = pa_context_get_sink_info_by_index(ctx, idx, init_sink_info, self);
@@ -245,6 +274,8 @@ static void changed_cb(pa_context *ctx, pa_subscription_event_type_t type, uint3
         if (idx == self->source_id && kind == PA_SUBSCRIPTION_EVENT_REMOVE) {
             g_debug("source %u removed", idx);
             self->source_id = -1;
+            g_hash_table_destroy(self->source_ports);
+            self->source_ports = NULL;
         } else if (kind == PA_SUBSCRIPTION_EVENT_NEW) {
             g_debug("new sink %u", idx);
             op = pa_context_get_source_info_by_index(ctx, idx, init_source_info, self);
