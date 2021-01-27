@@ -56,6 +56,9 @@ typedef struct _CadPulseOperation {
     guint value;
 } CadPulseOperation;
 
+static void pulseaudio_cleanup(CadPulse *self);
+static gboolean pulseaudio_connect(CadPulse *self);
+
 /******************************************************************************
  * Source management
  *
@@ -488,11 +491,12 @@ static void pulse_state_cb(pa_context *ctx, void *data)
         g_debug("PA not ready");
         break;
     case PA_CONTEXT_FAILED:
-        g_error("Error in PulseAudio context: %s", pa_strerror(pa_context_errno(ctx)));
+        g_critical("Error in PulseAudio context: %s", pa_strerror(pa_context_errno(ctx)));
+        pulseaudio_cleanup(self);
+        g_idle_add(G_SOURCE_FUNC(pulseaudio_connect), self);
         break;
     case PA_CONTEXT_TERMINATED:
     case PA_CONTEXT_READY:
-        pa_context_set_state_callback(ctx, NULL, NULL);
         pa_context_set_subscribe_callback(ctx, changed_cb, self);
         pa_context_subscribe(ctx,
                              PA_SUBSCRIPTION_MASK_SINK  | PA_SUBSCRIPTION_MASK_SOURCE | PA_SUBSCRIPTION_MASK_CARD,
@@ -503,11 +507,17 @@ static void pulse_state_cb(pa_context *ctx, void *data)
     }
 }
 
-
-static void constructed(GObject *object)
+static void pulseaudio_cleanup(CadPulse *self)
 {
-    GObjectClass *parent_class = g_type_class_peek(G_TYPE_OBJECT);
-    CadPulse *self = CAD_PULSE(object);
+    if (self->ctx) {
+        pa_context_disconnect(self->ctx);
+        pa_context_unref(self->ctx);
+        self->ctx = NULL;
+    }
+}
+
+static gboolean pulseaudio_connect(CadPulse *self)
+{
     pa_proplist *props;
     int err;
 
@@ -518,11 +528,13 @@ static void constructed(GObject *object)
     err = pa_proplist_sets(props, PA_PROP_APPLICATION_NAME, APPLICATION_NAME);
     err = pa_proplist_sets(props, PA_PROP_APPLICATION_ID, APPLICATION_ID);
 
-    self->loop = pa_glib_mainloop_new(NULL);
+    if (!self->loop)
+        self->loop = pa_glib_mainloop_new(NULL);
     if (!self->loop)
         g_error ("Error creating PulseAudio main loop");
 
-    self->ctx = pa_context_new(pa_glib_mainloop_get_api(self->loop), APPLICATION_NAME);
+    if (!self->ctx)
+        self->ctx = pa_context_new(pa_glib_mainloop_get_api(self->loop), APPLICATION_NAME);
     if (!self->ctx)
         g_error ("Error creating PulseAudio context");
 
@@ -530,6 +542,20 @@ static void constructed(GObject *object)
     err = pa_context_connect(self->ctx, NULL, PA_CONTEXT_NOFAIL, 0);
     if (err < 0)
         g_error ("Error connecting to PulseAudio context: %s", pa_strerror(err));
+
+    return G_SOURCE_REMOVE;
+}
+
+/******************************************************************************
+ * GObject base functions
+ ******************************************************************************/
+
+static void constructed(GObject *object)
+{
+    GObjectClass *parent_class = g_type_class_peek(G_TYPE_OBJECT);
+    CadPulse *self = CAD_PULSE(object);
+
+    pulseaudio_connect(self);
 
     parent_class->constructed(object);
 }
@@ -543,11 +569,9 @@ static void dispose(GObject *object)
     if (self->speaker_port)
         g_free(self->speaker_port);
 
-    if (self->ctx) {
-        pa_context_disconnect(self->ctx);
-        pa_context_unref(self->ctx);
-        self->ctx = NULL;
+    pulseaudio_cleanup(self);
 
+    if (self->loop) {
         pa_glib_mainloop_free(self->loop);
         self->loop = NULL;
     }
