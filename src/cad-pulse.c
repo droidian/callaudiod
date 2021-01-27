@@ -392,30 +392,55 @@ static void init_card_info(pa_context *ctx, const pa_card_info *info, int eol, v
     g_debug("CARD:   %s voice profile", self->has_voice_profile ? "has" : "doesn't have");
 }
 
-static void init_cards_list(CadPulse *self)
-{
-    pa_operation *op;
-
-    self->card_id = self->sink_id = self->source_id = -1;
-    self->sink_ports = self->source_ports = NULL;
-
-    op = pa_context_get_card_info_list(self->ctx, init_card_info, self);
-    if (op)
-        pa_operation_unref(op);
-    op = pa_context_get_sink_info_list(self->ctx, init_sink_info, self);
-    if (op)
-        pa_operation_unref(op);
-    op = pa_context_get_source_info_list(self->ctx, init_source_info, self);
-    if (op)
-        pa_operation_unref(op);
-}
-
 /******************************************************************************
  * PulseAudio management
  *
  * The following functions configure the PulseAudio connection and monitor the
  * state of PulseAudio objects
  ******************************************************************************/
+
+ static void init_module_info(pa_context *ctx, const pa_module_info *info, int eol, void *data)
+ {
+     pa_operation *op;
+
+     if (eol != 0)
+         return;
+
+     if (!info) {
+         g_critical("PA returned no module info (eol=%d)", eol);
+         return;
+     }
+
+     g_debug("MODULE: idx=%u name='%s'", info->index, info->name);
+
+     if (strcmp(info->name, "module-switch-on-port-available") == 0) {
+         g_debug("MODULE: unloading '%s'", info->name);
+         op = pa_context_unload_module(ctx, info->index, NULL, NULL);
+         if (op)
+             pa_operation_unref(op);
+     }
+ }
+
+ static void init_pulseaudio_objects(CadPulse *self)
+ {
+     pa_operation *op;
+
+     self->card_id = self->sink_id = self->source_id = -1;
+     self->sink_ports = self->source_ports = NULL;
+
+     op = pa_context_get_card_info_list(self->ctx, init_card_info, self);
+     if (op)
+         pa_operation_unref(op);
+     op = pa_context_get_module_info_list(self->ctx, init_module_info, self);
+     if (op)
+         pa_operation_unref(op);
+     op = pa_context_get_sink_info_list(self->ctx, init_sink_info, self);
+     if (op)
+         pa_operation_unref(op);
+     op = pa_context_get_source_info_list(self->ctx, init_source_info, self);
+     if (op)
+         pa_operation_unref(op);
+ }
 
 static void changed_cb(pa_context *ctx, pa_subscription_event_type_t type, uint32_t idx, void *data)
 {
@@ -502,7 +527,7 @@ static void pulse_state_cb(pa_context *ctx, void *data)
                              PA_SUBSCRIPTION_MASK_SINK  | PA_SUBSCRIPTION_MASK_SOURCE | PA_SUBSCRIPTION_MASK_CARD,
                              subscribe_cb, self);
         g_debug("PA is ready, initializing cards list");
-        init_cards_list(self);
+        init_pulseaudio_objects(self);
         break;
     }
 }
