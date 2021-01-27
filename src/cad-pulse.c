@@ -497,11 +497,6 @@ static void changed_cb(pa_context *ctx, pa_subscription_event_type_t type, uint3
     }
 }
 
-static void subscribe_cb(pa_context *ctx, int success, void *data)
-{
-    g_debug("subscribe returned %d", success);
-}
-
 static void pulse_state_cb(pa_context *ctx, void *data)
 {
     CadPulse *self = data;
@@ -525,7 +520,7 @@ static void pulse_state_cb(pa_context *ctx, void *data)
         pa_context_set_subscribe_callback(ctx, changed_cb, self);
         pa_context_subscribe(ctx,
                              PA_SUBSCRIPTION_MASK_SINK  | PA_SUBSCRIPTION_MASK_SOURCE | PA_SUBSCRIPTION_MASK_CARD,
-                             subscribe_cb, self);
+                             NULL, self);
         g_debug("PA is ready, initializing cards list");
         init_pulseaudio_objects(self);
         break;
