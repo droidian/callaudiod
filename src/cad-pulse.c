@@ -114,6 +114,51 @@ static const gchar *get_available_input(const pa_source_info *source, const gcha
     return NULL;
 }
 
+static void change_source_info(pa_context *ctx, const pa_source_info *info, int eol, void *data)
+{
+    CadPulse *self = data;
+    const gchar *target_port;
+    pa_operation *op;
+    gboolean change = FALSE;
+    guint i;
+
+    if (eol != 0)
+        return;
+
+    if (!info) {
+        g_critical("PA returned no source info (eol=%d)", eol);
+        return;
+    }
+
+    if (info->index != self->source_id)
+        return;
+
+    for (i = 0; i < info->n_ports; i++) {
+        pa_source_port_info *port = info->ports[i];
+
+        if (port->available != PA_PORT_AVAILABLE_UNKNOWN) {
+            enum pa_port_available available;
+            available = GPOINTER_TO_INT(g_hash_table_lookup(self->source_ports, port->name));
+            if (available != port->available) {
+                g_hash_table_insert(self->source_ports, g_strdup(port->name),
+                                    GINT_TO_POINTER(port->available));
+                change = TRUE;
+            }
+        }
+    }
+
+    if (change) {
+        target_port = get_available_input(info, NULL);
+        if (target_port) {
+            g_debug("  Using source port '%s'", target_port);
+            op = pa_context_set_source_port_by_index(ctx, self->source_id,
+                                                   target_port, NULL, NULL);
+            if (op)
+                pa_operation_unref(op);
+        }
+    }
+}
+
 static void process_new_source(CadPulse *self, const pa_source_info *info)
 {
     const gchar *prop;
@@ -141,6 +186,50 @@ static void process_new_source(CadPulse *self, const pa_source_info *info)
     }
 
     g_debug("SOURCE: idx=%u name='%s'", info->index, info->name);
+}
+
+static void change_sink_info(pa_context *ctx, const pa_sink_info *info, int eol, void *data)
+{
+    CadPulse *self = data;
+    const gchar *target_port;
+    pa_operation *op;
+    gboolean change = FALSE;
+    guint i;
+
+    if (eol != 0)
+        return;
+
+    if (!info) {
+        g_critical("PA returned no sink info (eol=%d)", eol);
+        return;
+    }
+
+    if (info->index != self->sink_id)
+        return;
+
+    for (i = 0; i < info->n_ports; i++) {
+        pa_sink_port_info *port = info->ports[i];
+
+        if (port->available != PA_PORT_AVAILABLE_UNKNOWN) {
+            enum pa_port_available available;
+            available = GPOINTER_TO_INT(g_hash_table_lookup(self->sink_ports, port->name));
+            if (available != port->available) {
+                g_hash_table_insert(self->sink_ports, g_strdup(port->name),
+                                    GINT_TO_POINTER(port->available));
+                change = TRUE;
+            }
+        }
+    }
+
+    if (change) {
+        target_port = get_available_output(info, NULL);
+        if (target_port) {
+            op = pa_context_set_sink_port_by_index(ctx, self->sink_id,
+                                                   target_port, NULL, NULL);
+            if (op)
+                pa_operation_unref(op);
+        }
+    }
 }
 
 static void process_sink_ports(CadPulse *self, const pa_sink_info *info)
@@ -337,6 +426,23 @@ static void changed_cb(pa_context *ctx, pa_subscription_event_type_t type, uint3
                 pa_operation_unref(op);
         }
         break;
+    case PA_SUBSCRIPTION_EVENT_CARD:
+        if (idx == self->card_id && kind == PA_SUBSCRIPTION_EVENT_CHANGE) {
+            g_debug("card %u changed", idx);
+            if (self->sink_id != -1) {
+                op = pa_context_get_sink_info_by_index(ctx, self->sink_id,
+                                                       change_sink_info, self);
+                if (op)
+                    pa_operation_unref(op);
+            }
+            if (self->source_id != -1) {
+                op = pa_context_get_source_info_by_index(ctx, self->source_id,
+                                                         change_source_info, self);
+                if (op)
+                    pa_operation_unref(op);
+            }
+        }
+        break;
     default:
         break;
     }
@@ -368,7 +474,7 @@ static void pulse_state_cb(pa_context *ctx, void *data)
         pa_context_set_state_callback(ctx, NULL, NULL);
         pa_context_set_subscribe_callback(ctx, changed_cb, self);
         pa_context_subscribe(ctx,
-                             PA_SUBSCRIPTION_MASK_SINK  | PA_SUBSCRIPTION_MASK_SOURCE,
+                             PA_SUBSCRIPTION_MASK_SINK  | PA_SUBSCRIPTION_MASK_SOURCE | PA_SUBSCRIPTION_MASK_CARD,
                              subscribe_cb, self);
         g_debug("PA is ready, initializing cards list");
         init_cards_list(self);
