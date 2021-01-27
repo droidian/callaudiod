@@ -61,7 +61,7 @@ static const gchar *get_available_output(const pa_sink_info *sink, const gchar *
     pa_sink_port_info *available_port = NULL;
     guint i;
 
-    g_debug("looking for available port excluding '%s'", exclude);
+    g_debug("looking for available output excluding '%s'", exclude);
 
     for (i = 0; i < sink->n_ports; i++) {
         pa_sink_port_info *port = sink->ports[i];
@@ -76,11 +76,40 @@ static const gchar *get_available_output(const pa_sink_info *sink, const gchar *
     }
 
     if (available_port) {
-        g_debug("found available port '%s'", available_port->name);
+        g_debug("found available output '%s'", available_port->name);
         return available_port->name;
     }
 
-    g_warning("no available port found!");
+    g_warning("no available output found!");
+
+    return NULL;
+}
+
+static const gchar *get_available_input(const pa_source_info *source, const gchar *exclude)
+{
+    pa_source_port_info *available_port = NULL;
+    guint i;
+
+    g_debug("looking for available input excluding '%s'", exclude);
+
+    for (i = 0; i < source->n_ports; i++) {
+        pa_source_port_info *port = source->ports[i];
+
+        if ((exclude && strcmp(port->name, exclude) == 0) ||
+            port->available == PA_PORT_AVAILABLE_NO) {
+            continue;
+        }
+
+        if (!available_port || port->priority > available_port->priority)
+            available_port = port;
+    }
+
+    if (available_port) {
+        g_debug("found available input '%s'", available_port->name);
+        return available_port->name;
+    }
+
+    g_warning("no available input found!");
 
     return NULL;
 }
@@ -165,6 +194,8 @@ static void process_new_sink(CadPulse *self, const pa_sink_info *info)
 static void init_source_info(pa_context *ctx, const pa_source_info *info, int eol, void *data)
 {
     CadPulse *self = data;
+    const gchar *target_port;
+    pa_operation *op;
 
     if (eol != 0)
         return;
@@ -175,11 +206,23 @@ static void init_source_info(pa_context *ctx, const pa_source_info *info, int eo
     }
 
     process_new_source(self, info);
+    if (self->source_id < 0)
+        return;
+
+    target_port = get_available_input(info, NULL);
+    if (target_port) {
+        op = pa_context_set_source_port_by_index(ctx, self->source_id,
+                                                 target_port, NULL, NULL);
+        if (op)
+            pa_operation_unref(op);
+    }
 }
 
 static void init_sink_info(pa_context *ctx, const pa_sink_info *info, int eol, void *data)
 {
     CadPulse *self = data;
+    const gchar *target_port;
+    pa_operation *op;
 
     if (eol != 0)
         return;
@@ -190,6 +233,17 @@ static void init_sink_info(pa_context *ctx, const pa_sink_info *info, int eol, v
     }
 
     process_new_sink(self, info);
+    if (self->sink_id < 0)
+        return;
+
+    target_port = get_available_output(info, NULL);
+    if (target_port) {
+        g_debug("  Using sink port '%s'", target_port);
+        op = pa_context_set_sink_port_by_index(ctx, self->sink_id,
+                                               target_port, NULL, NULL);
+        if (op)
+            pa_operation_unref(op);
+    }
 }
 
 static void init_card_info(pa_context *ctx, const pa_card_info *info, int eol, void *data)
