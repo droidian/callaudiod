@@ -56,36 +56,14 @@ typedef struct _CadPulseOperation {
     guint value;
 } CadPulseOperation;
 
-static const gchar *get_available_output(const pa_sink_info *sink, const gchar *exclude)
-{
-    pa_sink_port_info *available_port = NULL;
-    guint i;
+/******************************************************************************
+ * Source management
+ *
+ * The following functions take care of monitoring and configuring the default
+ * source (input)
+ ******************************************************************************/
 
-    g_debug("looking for available output excluding '%s'", exclude);
-
-    for (i = 0; i < sink->n_ports; i++) {
-        pa_sink_port_info *port = sink->ports[i];
-
-        if ((exclude && strcmp(port->name, exclude) == 0) ||
-            port->available == PA_PORT_AVAILABLE_NO) {
-            continue;
-        }
-
-        if (!available_port || port->priority > available_port->priority)
-            available_port = port;
-    }
-
-    if (available_port) {
-        g_debug("found available output '%s'", available_port->name);
-        return available_port->name;
-    }
-
-    g_warning("no available output found!");
-
-    return NULL;
-}
-
-static const gchar *get_available_input(const pa_source_info *source, const gchar *exclude)
+static const gchar *get_available_source_port(const pa_source_info *source, const gchar *exclude)
 {
     pa_source_port_info *available_port = NULL;
     guint i;
@@ -148,9 +126,8 @@ static void change_source_info(pa_context *ctx, const pa_source_info *info, int 
     }
 
     if (change) {
-        target_port = get_available_input(info, NULL);
+        target_port = get_available_source_port(info, NULL);
         if (target_port) {
-            g_debug("  Using source port '%s'", target_port);
             op = pa_context_set_source_port_by_index(ctx, self->source_id,
                                                    target_port, NULL, NULL);
             if (op)
@@ -188,6 +165,69 @@ static void process_new_source(CadPulse *self, const pa_source_info *info)
     g_debug("SOURCE: idx=%u name='%s'", info->index, info->name);
 }
 
+static void init_source_info(pa_context *ctx, const pa_source_info *info, int eol, void *data)
+{
+    CadPulse *self = data;
+    const gchar *target_port;
+    pa_operation *op;
+
+    if (eol != 0)
+        return;
+
+    if (!info) {
+        g_critical("PA returned no source info (eol=%d)", eol);
+        return;
+    }
+
+    process_new_source(self, info);
+    if (self->source_id < 0)
+        return;
+
+    target_port = get_available_source_port(info, NULL);
+    if (target_port) {
+        op = pa_context_set_source_port_by_index(ctx, self->source_id,
+                                                 target_port, NULL, NULL);
+        if (op)
+            pa_operation_unref(op);
+    }
+}
+
+/******************************************************************************
+ * Sink management
+ *
+ * The following functions take care of monitoring and configuring the default
+ * sink (output)
+ ******************************************************************************/
+
+static const gchar *get_available_sink_port(const pa_sink_info *sink, const gchar *exclude)
+{
+    pa_sink_port_info *available_port = NULL;
+    guint i;
+
+    g_debug("looking for available output excluding '%s'", exclude);
+
+    for (i = 0; i < sink->n_ports; i++) {
+        pa_sink_port_info *port = sink->ports[i];
+
+        if ((exclude && strcmp(port->name, exclude) == 0) ||
+            port->available == PA_PORT_AVAILABLE_NO) {
+            continue;
+        }
+
+        if (!available_port || port->priority > available_port->priority)
+            available_port = port;
+    }
+
+    if (available_port) {
+        g_debug("found available output '%s'", available_port->name);
+        return available_port->name;
+    }
+
+    g_warning("no available output found!");
+
+    return NULL;
+}
+
 static void change_sink_info(pa_context *ctx, const pa_sink_info *info, int eol, void *data)
 {
     CadPulse *self = data;
@@ -222,7 +262,7 @@ static void change_sink_info(pa_context *ctx, const pa_sink_info *info, int eol,
     }
 
     if (change) {
-        target_port = get_available_output(info, NULL);
+        target_port = get_available_sink_port(info, NULL);
         if (target_port) {
             op = pa_context_set_sink_port_by_index(ctx, self->sink_id,
                                                    target_port, NULL, NULL);
@@ -232,9 +272,23 @@ static void change_sink_info(pa_context *ctx, const pa_sink_info *info, int eol,
     }
 }
 
-static void process_sink_ports(CadPulse *self, const pa_sink_info *info)
+static void process_new_sink(CadPulse *self, const pa_sink_info *info)
 {
-    int i;
+    const gchar *prop;
+    guint i;
+
+    prop = pa_proplist_gets(info->proplist, PA_PROP_DEVICE_CLASS);
+    if (prop && strcmp(prop, SINK_CLASS) != 0)
+        return;
+    if (info->card != self->card_id || self->sink_id != -1)
+        return;
+
+    self->sink_id = info->index;
+    if (self->sink_ports)
+        g_hash_table_destroy(self->sink_ports);
+    self->sink_ports = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+
+    g_debug("SINK: idx=%u name='%s'", info->index, info->name);
 
     for (i = 0; i < info->n_ports; i++) {
         pa_sink_port_info *port = info->ports[i];
@@ -260,53 +314,6 @@ static void process_sink_ports(CadPulse *self, const pa_sink_info *info)
     g_debug("SINK:   speaker_port='%s'", self->speaker_port);
 }
 
-static void process_new_sink(CadPulse *self, const pa_sink_info *info)
-{
-    const gchar *prop;
-
-    prop = pa_proplist_gets(info->proplist, PA_PROP_DEVICE_CLASS);
-    if (prop && strcmp(prop, SINK_CLASS) != 0)
-        return;
-    if (info->card != self->card_id || self->sink_id != -1)
-        return;
-
-    self->sink_id = info->index;
-    if (self->sink_ports)
-        g_hash_table_destroy(self->sink_ports);
-    self->sink_ports = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
-
-    g_debug("SINK: idx=%u name='%s'", info->index, info->name);
-
-    process_sink_ports(self, info);
-}
-
-static void init_source_info(pa_context *ctx, const pa_source_info *info, int eol, void *data)
-{
-    CadPulse *self = data;
-    const gchar *target_port;
-    pa_operation *op;
-
-    if (eol != 0)
-        return;
-
-    if (!info) {
-        g_critical("PA returned no source info (eol=%d)", eol);
-        return;
-    }
-
-    process_new_source(self, info);
-    if (self->source_id < 0)
-        return;
-
-    target_port = get_available_input(info, NULL);
-    if (target_port) {
-        op = pa_context_set_source_port_by_index(ctx, self->source_id,
-                                                 target_port, NULL, NULL);
-        if (op)
-            pa_operation_unref(op);
-    }
-}
-
 static void init_sink_info(pa_context *ctx, const pa_sink_info *info, int eol, void *data)
 {
     CadPulse *self = data;
@@ -325,7 +332,7 @@ static void init_sink_info(pa_context *ctx, const pa_sink_info *info, int eol, v
     if (self->sink_id < 0)
         return;
 
-    target_port = get_available_output(info, NULL);
+    target_port = get_available_sink_port(info, NULL);
     if (target_port) {
         g_debug("  Using sink port '%s'", target_port);
         op = pa_context_set_sink_port_by_index(ctx, self->sink_id,
@@ -334,6 +341,13 @@ static void init_sink_info(pa_context *ctx, const pa_sink_info *info, int eol, v
             pa_operation_unref(op);
     }
 }
+
+/******************************************************************************
+ * Card management
+ *
+ * The following functions take care of gathering information about the default
+ * sound card
+ ******************************************************************************/
 
 static void init_card_info(pa_context *ctx, const pa_card_info *info, int eol, void *data)
 {
@@ -392,6 +406,13 @@ static void init_cards_list(CadPulse *self)
     if (op)
         pa_operation_unref(op);
 }
+
+/******************************************************************************
+ * PulseAudio management
+ *
+ * The following functions configure the PulseAudio connection and monitor the
+ * state of PulseAudio objects
+ ******************************************************************************/
 
 static void changed_cb(pa_context *ctx, pa_subscription_event_type_t type, uint32_t idx, void *data)
 {
@@ -482,6 +503,7 @@ static void pulse_state_cb(pa_context *ctx, void *data)
     }
 }
 
+
 static void constructed(GObject *object)
 {
     GObjectClass *parent_class = g_type_class_peek(G_TYPE_OBJECT);
@@ -557,6 +579,13 @@ CadPulse *cad_pulse_get_default(void)
 
     return pulse;
 }
+
+/******************************************************************************
+ * Commands management
+ *
+ * The following functions handle external requests to switch mode, output port
+ * or microphone status
+ ******************************************************************************/
 
 static void operation_complete_cb(pa_context *ctx, int success, void *data)
 {
@@ -644,9 +673,9 @@ static void set_output_port(pa_context *ctx, const pa_sink_info *info, int eol, 
          * be selected anyway.
          */
         if (operation->value == CALL_AUDIO_MODE_CALL)
-            target_port = get_available_output(info, operation->pulse->speaker_port);
+            target_port = get_available_sink_port(info, operation->pulse->speaker_port);
         else
-            target_port = get_available_output(info, NULL);
+            target_port = get_available_sink_port(info, NULL);
     } else {
         /*
          * When forcing speaker output, we simply select the speaker port.
@@ -657,7 +686,7 @@ static void set_output_port(pa_context *ctx, const pa_sink_info *info, int eol, 
         if (operation->value)
             target_port = operation->pulse->speaker_port;
         else
-            target_port = get_available_output(info, operation->pulse->speaker_port);
+            target_port = get_available_sink_port(info, operation->pulse->speaker_port);
     }
 
     g_debug("active port is '%s', target port is '%s'", info->active_port->name, target_port);
