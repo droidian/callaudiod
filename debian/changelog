@@ -1,3 +1,17 @@
+callaudiod (0.1.0-1) unstable; urgency=medium
+
+  [ Evangelos Ribeiro Tzaras ]
+  * d/control: Make doc package Architecture All
+  * d/control: put -doc package in doc section
+  * d/control: Fix doc package dependencies
+  * d/control: Suggest devhelp in doc package
+  * d/control: Fix doc package description
+
+  [ Arnaud Ferraris ]
+  * New upstream version 0.1.0
+
+ -- Arnaud Ferraris <arnaud.ferraris@gmail.com>  Thu, 28 Jan 2021 08:55:46 +0100
+
 callaudiod (0.0.5-1) unstable; urgency=medium
 
   [ Guido Günther ]
