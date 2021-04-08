@@ -24,7 +24,7 @@
 #define APPLICATION_ID   "org.mobian-project.CallAudio"
 
 #define SINK_CLASS "sound"
-#define CARD_BUS_PATH "platform-sound"
+#define CARD_BUS_PATH_PREFIX "platform-"
 #define CARD_FORM_FACTOR "internal"
 #define CARD_MODEM_CLASS "modem"
 
@@ -367,7 +367,7 @@ static void init_card_info(pa_context *ctx, const pa_card_info *info, int eol, v
     }
 
     prop = pa_proplist_gets(info->proplist, PA_PROP_DEVICE_BUS_PATH);
-    if (prop && strcmp(prop, CARD_BUS_PATH) != 0)
+    if (prop && !g_str_has_prefix(prop, CARD_BUS_PATH_PREFIX))
         return;
     prop = pa_proplist_gets(info->proplist, PA_PROP_DEVICE_FORM_FACTOR);
     if (prop && strcmp(prop, CARD_FORM_FACTOR) != 0)
