@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 
 <node>
+  <!-- org.mobian_project.CallAudio
+       @short_description: call related audio interface
+
+       This D-Bus interface is used to select audio modes
+       and access other related audio functionality in
+       a mobile phone context.
+  -->
   <interface name="org.mobian_project.CallAudio">
 
     <!--

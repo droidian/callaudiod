@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.3//EN"
+               "http://www.oasis-open.org/docbook/xml/4.3/docbookx.dtd"
+[
+  <!ENTITY % local.common.attrib "xmlns:xi  CDATA  #FIXED 'http://www.w3.org/2003/XInclude'">
+  <!ENTITY % gtkdocentities SYSTEM "xml/gtkdocentities.ent">
+  %gtkdocentities;
+]>
+<book id="index">
+  <bookinfo>
+    <title>&package_name; Reference Manual</title>
+    <releaseinfo>
+      <para>This document is the API reference for &package_name; &package_version;</para>
+      <para>
+        <ulink type="http" url="&package_url;">Libcallaudio</ulink> is a library to allow
+        setting audio call (f.e. mobile phone environment) related settings by your application.
+      </para>
+      <para>
+        If you find any issues in this API reference, please report it using
+        <ulink type="http" url="&package_bugreport;">the bugtracker</ulink>.
+      </para>
+    </releaseinfo>
+
+    <copyright>
+      <year>2020</year>
+      <holder>Arnaud Ferraris</holder>
+    </copyright>
+  </bookinfo>
+
+  <xi:include href="overview.xml"/>
+
+  <part>
+  <title>API Reference</title>
+
+  <chapter id="core-api">
+    <title>Core API</title>
+    <xi:include href="xml/libcallaudio.xml"/>
+  </chapter>
+
+  <chapter id="dbus-interface">
+    <title>DBus Interface</title>
+    <xi:include href="../data/libcallaudio-org.mobian_project.CallAudio.xml"/>
+  </chapter>
+
+  </part>
+
+  <index id="api-index-full">
+    <title>API Index</title>
+    <xi:include href="xml/api-index-full.xml"><xi:fallback /></xi:include>
+  </index>
+
+  <index id="annotations-glossary">
+  <title>Annotations glossary</title>
+  <xi:include href="xml/annotation-glossary.xml"><xi:fallback /></xi:include>
+  </index>
+
+</book>
