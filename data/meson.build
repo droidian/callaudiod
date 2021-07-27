@@ -18,6 +18,7 @@ dbus_interfaces = [ 'org.mobian_project.CallAudio.xml' ]
 generated_dbus_sources += gnome.gdbus_codegen('callaudio-dbus',
     sources          : dbus_interfaces,
     object_manager   : false,
+    docbook          : 'libcallaudio',
     interface_prefix : dbus_prefix,
     install_header   : false,
     namespace        : dbus_namespace)

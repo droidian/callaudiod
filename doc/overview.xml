@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.3//EN"
+               "http://www.oasis-open.org/docbook/xml/4.3/docbookx.dtd" [
+  <!ENTITY % local.common.attrib "xmlns:xi  CDATA  #FIXED 'http://www.w3.org/2003/XInclude'">
+  <!ENTITY % gtkdocentities SYSTEM "xml/gtkdocentities.ent">
+  %gtkdocentities;
+]>
+
+<part>
+  <title>Libcallaudio Overview</title>
+
+  <chapter>
+    <title>Introduction</title>
+
+    <para>
+      The purpose of libcallaudio is to make it simple for other applications
+      to control audio routing and other audio related settings in
+      mobile phone scenarios.
+    </para>
+    <para>
+      &package; provides synchronous and asynchronous APIs to switch
+      audio profiles, change between the earpiece and the speakers
+      and mute the microphone.
+    </para>
+  </chapter>
+
+  <chapter>
+    <title>Compiling libcallaudio applications</title>
+    <simplesect>
+      <title>Using pkg-config</title>
+
+      <para> Like other GNOME libraries,
+      <application>&package_string;</application> uses
+      <application>pkg-config</application> to provide compiler options. The
+      package name is
+      "<literal>&package_ver_str;</literal>". So in
+      your <literal>configure.ac</literal> script, you might specify something
+      like: </para>
+
+      <informalexample><programlisting>
+	PKG_CHECK_MODULES(LIBFEEDBACK, [&package_string;-&package_api_version;])
+	AC_SUBST(LIBFEEDBACK_CFLAGS)
+	AC_SUBST(LIBFEEDBACK_LIBS)
+      </programlisting></informalexample>
+    </simplesect>
+
+    <simplesect>
+      <title>Using Meson/Ninja</title>
+      <para>
+	If using Meson/Ninja use a <literal>dependency('&package_string;-&package_api_version;')
+	</literal> dependency.
+      </para>
+
+      <para>
+	The "<literal>&package_api_version;</literal>" in the package name is the "API version"
+	(indicating "the version of the <application>&package_string;</application> API
+	that first appeared in version &package_api_version;") and is essentially just part of
+	the package name.
+      </para>
+
+    </simplesect>
+
+  </chapter>
+  
+</part>

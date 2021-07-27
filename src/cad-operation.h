@@ -9,6 +9,14 @@
 #include "callaudio-dbus.h"
 #include <glib-object.h>
 
+/**
+ * CadOperationType:
+ * @CAD_OPERATION_SELECT_MODE: Selecting an audio mode (default mode, voice call mode)
+ * @CAD_OPERATION_ENABLE_SPEAKER: Enable or disable the loudspeaker
+ * @CAD_OPERATION_MUTE_MIC: Mute or unmute the microphone
+ *
+ * Enum values to indicate the operation to be performed.
+ */
 typedef enum {
     CAD_OPERATION_SELECT_MODE = 0,
     CAD_OPERATION_ENABLE_SPEAKER,
