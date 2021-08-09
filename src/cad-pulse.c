@@ -36,6 +36,8 @@
 #define DROID_PROFILE_VOICECALL "voicecall"
 #define DROID_OUTPUT_PORT_PARKING "output-parking"
 #define DROID_OUTPUT_PORT_SPEAKER "output-speaker"
+#define DROID_OUTPUT_PORT_EARPIECE "output-earpiece"
+#define DROID_OUTPUT_PORT_WIRED_HEADSET "output-wired_headset"
 #define DROID_INPUT_PORT_PARKING "input-parking"
 #define DROID_INPUT_PORT_BUILTIN_MIC "input-builtin_mic"
 #define DROID_INPUT_PORT_WIRED_HEADSET_MIC "input-wired_headset"
@@ -268,7 +270,11 @@ static void init_source_info(pa_context *ctx, const pa_source_info *info, int eo
  * sink (output)
  ******************************************************************************/
 
+#ifdef WITH_DROID_SUPPORT
+static const gchar *get_available_sink_port(const pa_sink_info *sink, const gchar *exclude, gboolean sink_is_droid)
+#else
 static const gchar *get_available_sink_port(const pa_sink_info *sink, const gchar *exclude)
+#endif /* WITH_DROID_SUPPORT */
 {
     pa_sink_port_info *available_port = NULL;
     guint i;
@@ -283,8 +289,23 @@ static const gchar *get_available_sink_port(const pa_sink_info *sink, const gcha
             continue;
         }
 
+#ifdef WITH_DROID_SUPPORT
+        if (sink_is_droid) {
+            if (strcmp(port->name, DROID_OUTPUT_PORT_WIRED_HEADSET) == 0) {
+                /* wired_headset is the preferred one */
+                available_port = port;
+                break;
+            } else if (strcmp(port->name, DROID_OUTPUT_PORT_SPEAKER) == 0 || strcmp(port->name, DROID_OUTPUT_PORT_EARPIECE) == 0) {
+                /* builtin mic */
+                available_port = port;
+            }
+        } else if (!available_port || port->priority > available_port->priority) {
+            available_port = port;
+        }
+#else
         if (!available_port || port->priority > available_port->priority)
             available_port = port;
+#endif /* WITH_DROID_SUPPORT */
     }
 
     if (available_port) {
@@ -331,7 +352,11 @@ static void change_sink_info(pa_context *ctx, const pa_sink_info *info, int eol,
     }
 
     if (change) {
+#ifdef WITH_DROID_SUPPORT
+        target_port = get_available_sink_port(info, NULL, self->sink_is_droid);
+#else
         target_port = get_available_sink_port(info, NULL);
+#endif /* WITH_DROID_SUPPORT */
         if (target_port) {
             op = pa_context_set_sink_port_by_index(ctx, self->sink_id,
                                                    target_port, NULL, NULL);
@@ -411,7 +436,11 @@ static void init_sink_info(pa_context *ctx, const pa_sink_info *info, int eol, v
     if (self->sink_id < 0)
         return;
 
+#ifdef WITH_DROID_SUPPORT
+    target_port = get_available_sink_port(info, NULL, self->sink_is_droid);
+#else
     target_port = get_available_sink_port(info, NULL);
+#endif /* WITH_DROID_SUPPORT */
     if (target_port) {
         g_debug("  Using sink port '%s'", target_port);
         op = pa_context_set_sink_port_by_index(ctx, self->sink_id,
@@ -920,9 +949,17 @@ static void set_output_port(pa_context *ctx, const pa_sink_info *info, int eol, 
          * be selected anyway.
          */
         if (operation->value == CALL_AUDIO_MODE_CALL)
+#ifdef WITH_DROID_SUPPORT
+            target_port = get_available_sink_port(info, operation->pulse->speaker_port, operation->pulse->sink_is_droid);
+#else
             target_port = get_available_sink_port(info, operation->pulse->speaker_port);
+#endif
         else
+#ifdef WITH_DROID_SUPPORT
+            target_port = get_available_sink_port(info, NULL, operation->pulse->sink_is_droid);
+#else
             target_port = get_available_sink_port(info, NULL);
+#endif
     } else {
         /*
          * When forcing speaker output, we simply select the speaker port.
@@ -933,7 +970,11 @@ static void set_output_port(pa_context *ctx, const pa_sink_info *info, int eol, 
         if (operation->value)
             target_port = operation->pulse->speaker_port;
         else
+#ifdef WITH_DROID_SUPPORT
+            target_port = get_available_sink_port(info, operation->pulse->speaker_port, operation->pulse->sink_is_droid);
+#else
             target_port = get_available_sink_port(info, operation->pulse->speaker_port);
+#endif
     }
 
     g_debug("active port is '%s', target port is '%s'", info->active_port->name, target_port);
