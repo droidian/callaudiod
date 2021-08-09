@@ -561,7 +561,7 @@ static void changed_cb(pa_context *ctx, pa_subscription_event_type_t type, uint3
             /**
              * On Droid, do not change ports automatically
             */
-#ifdef WITH_DROID_SUPPORT
+#ifdef WITH_DROID_SUPPORT_DISABLED
             if (!self->sink_is_droid && self->sink_id != -1) {
 #else
             if (self->sink_id != -1) {
@@ -571,7 +571,7 @@ static void changed_cb(pa_context *ctx, pa_subscription_event_type_t type, uint3
                 if (op)
                     pa_operation_unref(op);
             }
-#ifdef WITH_DROID_SUPPORT
+#ifdef WITH_DROID_SUPPORT_DISABLED
             if (!self->source_is_droid && self->source_id != -1) {
 #else
             if (self->source_id != -1) {
