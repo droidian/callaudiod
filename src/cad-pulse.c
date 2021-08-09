@@ -493,12 +493,14 @@ static void init_card_info(pa_context *ctx, const pa_card_info *info, int eol, v
 
      g_debug("MODULE: idx=%u name='%s'", info->index, info->name);
 
+#ifndef WITH_DROID_SUPPORT
      if (strcmp(info->name, "module-switch-on-port-available") == 0) {
          g_debug("MODULE: unloading '%s'", info->name);
          op = pa_context_unload_module(ctx, info->index, NULL, NULL);
          if (op)
              pa_operation_unref(op);
      }
+#endif /* WITH_DROID_SUPPORT */
  }
 
  static void init_pulseaudio_objects(CadPulse *self)
