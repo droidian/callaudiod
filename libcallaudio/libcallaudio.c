@@ -97,7 +97,7 @@ static void select_mode_done(GObject *object, GAsyncResult *result, gpointer dat
 {
     CallAudioDbusCallAudio *proxy = CALL_AUDIO_DBUS_CALL_AUDIO(object);
     CallAudioAsyncData *async_data = data;
-    g_autoptr (GError) error = NULL;
+    GError *error = NULL;
     gboolean success = FALSE;
     gboolean ret;
 
