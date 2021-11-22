@@ -27,6 +27,7 @@
 #define CARD_BUS_PATH_PREFIX "platform-"
 #define CARD_FORM_FACTOR "internal"
 #define CARD_MODEM_CLASS "modem"
+#define CARD_MODEM_NAME "Modem"
 
 struct _CadPulse
 {
@@ -371,6 +372,9 @@ static void init_card_info(pa_context *ctx, const pa_card_info *info, int eol, v
         return;
     prop = pa_proplist_gets(info->proplist, PA_PROP_DEVICE_FORM_FACTOR);
     if (prop && strcmp(prop, CARD_FORM_FACTOR) != 0)
+        return;
+    prop = pa_proplist_gets(info->proplist, "alsa.card_name");
+    if (prop && strcmp(prop, CARD_MODEM_NAME) == 0)
         return;
     prop = pa_proplist_gets(info->proplist, PA_PROP_DEVICE_CLASS);
     if (prop && strcmp(prop, CARD_MODEM_CLASS) == 0)
