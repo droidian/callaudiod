@@ -59,6 +59,7 @@ typedef struct _CadPulseOperation {
 
 static void pulseaudio_cleanup(CadPulse *self);
 static gboolean pulseaudio_connect(CadPulse *self);
+static void init_pulseaudio_objects(CadPulse *self);
 
 /******************************************************************************
  * Source management
@@ -356,11 +357,19 @@ static void init_sink_info(pa_context *ctx, const pa_sink_info *info, int eol, v
 static void init_card_info(pa_context *ctx, const pa_card_info *info, int eol, void *data)
 {
     CadPulse *self = data;
+    pa_operation *op;
     const gchar *prop;
+    gboolean has_speaker = FALSE;
+    gboolean has_earpiece = FALSE;
     guint i;
 
-    if (eol != 0)
+    if (eol != 0) {
+        if (self->card_id < 0) {
+            g_critical("No suitable card found, retrying in 3s...");
+            g_timeout_add_seconds(3, G_SOURCE_FUNC(init_pulseaudio_objects), self);
+        }
         return;
+    }
 
     if (!info) {
         g_critical("PA returned no card info (eol=%d)", eol);
@@ -380,6 +389,22 @@ static void init_card_info(pa_context *ctx, const pa_card_info *info, int eol, v
     if (prop && strcmp(prop, CARD_MODEM_CLASS) == 0)
         return;
 
+    for (i = 0; i < info->n_ports; i++) {
+        pa_card_port_info *port = info->ports[i];
+
+        if (strstr(port->name, SND_USE_CASE_DEV_SPEAKER) != NULL) {
+            has_speaker = TRUE;
+        } else if (strstr(port->name, SND_USE_CASE_DEV_EARPIECE) != NULL) {
+            has_earpiece = TRUE;
+        }
+    }
+
+    if (!has_speaker || !has_earpiece) {
+        g_message("Card '%s' lacks speaker and/or earpiece port, skipping...",
+                  info->name);
+        return;
+    }
+
     self->card_id = info->index;
 
     g_debug("CARD: idx=%u name='%s'", info->index, info->name);
@@ -394,6 +419,14 @@ static void init_card_info(pa_context *ctx, const pa_card_info *info, int eol, v
     }
 
     g_debug("CARD:   %s voice profile", self->has_voice_profile ? "has" : "doesn't have");
+
+    /* Found a suitable card, let's prepare the sink/source */
+    op = pa_context_get_sink_info_list(self->ctx, init_sink_info, self);
+    if (op)
+        pa_operation_unref(op);
+    op = pa_context_get_source_info_list(self->ctx, init_source_info, self);
+    if (op)
+        pa_operation_unref(op);
 }
 
 /******************************************************************************
@@ -436,12 +469,6 @@ static void init_card_info(pa_context *ctx, const pa_card_info *info, int eol, v
      if (op)
          pa_operation_unref(op);
      op = pa_context_get_module_info_list(self->ctx, init_module_info, self);
-     if (op)
-         pa_operation_unref(op);
-     op = pa_context_get_sink_info_list(self->ctx, init_sink_info, self);
-     if (op)
-         pa_operation_unref(op);
-     op = pa_context_get_source_info_list(self->ctx, init_source_info, self);
      if (op)
          pa_operation_unref(op);
  }
