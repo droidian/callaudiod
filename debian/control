@@ -12,7 +12,7 @@ Build-Depends:
  libpulse-dev,
  meson,
  pkg-config,
-Standards-Version: 4.5.0
+Standards-Version: 4.6.0
 Homepage: https://gitlab.com/mobian1/callaudiod
 Vcs-Git: https://gitlab.com/mobian1/callaudiod.git
 Vcs-Browser: https://gitlab.com/mobian1/callaudiod
