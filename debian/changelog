@@ -1,3 +1,10 @@
+callaudiod (0.1.2-1) unstable; urgency=medium
+
+  * New upstream version 0.1.2
+  * d/control: bump Standards-Version, no changes required
+
+ -- Arnaud Ferraris <arnaud.ferraris@gmail.com>  Wed, 05 Jan 2022 11:31:55 +0100
+
 callaudiod (0.1.1-1) unstable; urgency=medium
 
   * New upstream version 0.1.1
