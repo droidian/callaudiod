@@ -59,7 +59,7 @@ typedef struct _CadPulseOperation {
 
 static void pulseaudio_cleanup(CadPulse *self);
 static gboolean pulseaudio_connect(CadPulse *self);
-static void init_pulseaudio_objects(CadPulse *self);
+static gboolean init_pulseaudio_objects(CadPulse *self);
 
 /******************************************************************************
  * Source management
@@ -446,42 +446,44 @@ static void init_card_info(pa_context *ctx, const pa_card_info *info, int eol, v
  * state of PulseAudio objects
  ******************************************************************************/
 
- static void init_module_info(pa_context *ctx, const pa_module_info *info, int eol, void *data)
- {
-     pa_operation *op;
+static void init_module_info(pa_context *ctx, const pa_module_info *info, int eol, void *data)
+{
+    pa_operation *op;
 
-     if (eol != 0)
-         return;
+    if (eol != 0)
+        return;
 
-     if (!info) {
-         g_critical("PA returned no module info (eol=%d)", eol);
-         return;
-     }
+    if (!info) {
+        g_critical("PA returned no module info (eol=%d)", eol);
+        return;
+    }
 
-     g_debug("MODULE: idx=%u name='%s'", info->index, info->name);
+    g_debug("MODULE: idx=%u name='%s'", info->index, info->name);
 
-     if (strcmp(info->name, "module-switch-on-port-available") == 0) {
-         g_debug("MODULE: unloading '%s'", info->name);
-         op = pa_context_unload_module(ctx, info->index, NULL, NULL);
-         if (op)
-             pa_operation_unref(op);
-     }
- }
+    if (strcmp(info->name, "module-switch-on-port-available") == 0) {
+        g_debug("MODULE: unloading '%s'", info->name);
+        op = pa_context_unload_module(ctx, info->index, NULL, NULL);
+        if (op)
+            pa_operation_unref(op);
+    }
+}
 
- static void init_pulseaudio_objects(CadPulse *self)
- {
-     pa_operation *op;
+static gboolean init_pulseaudio_objects(CadPulse *self)
+{
+    pa_operation *op;
 
-     self->card_id = self->sink_id = self->source_id = -1;
-     self->sink_ports = self->source_ports = NULL;
+    self->card_id = self->sink_id = self->source_id = -1;
+    self->sink_ports = self->source_ports = NULL;
 
-     op = pa_context_get_card_info_list(self->ctx, init_card_info, self);
-     if (op)
-         pa_operation_unref(op);
-     op = pa_context_get_module_info_list(self->ctx, init_module_info, self);
-     if (op)
-         pa_operation_unref(op);
- }
+    op = pa_context_get_card_info_list(self->ctx, init_card_info, self);
+    if (op)
+        pa_operation_unref(op);
+    op = pa_context_get_module_info_list(self->ctx, init_module_info, self);
+    if (op)
+        pa_operation_unref(op);
+
+    return G_SOURCE_REMOVE;
+}
 
 static void changed_cb(pa_context *ctx, pa_subscription_event_type_t type, uint32_t idx, void *data)
 {
