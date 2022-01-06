@@ -404,7 +404,8 @@ static void init_card_info(pa_context *ctx, const pa_card_info *info, int eol, v
 
         if (strstr(port->name, SND_USE_CASE_DEV_SPEAKER) != NULL) {
             has_speaker = TRUE;
-        } else if (strstr(port->name, SND_USE_CASE_DEV_EARPIECE) != NULL) {
+        } else if (strstr(port->name, SND_USE_CASE_DEV_EARPIECE) != NULL ||
+                   strstr(port->name, SND_USE_CASE_DEV_HANDSET)  != NULL) {
             has_earpiece = TRUE;
         }
     }
