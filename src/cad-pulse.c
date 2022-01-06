@@ -187,7 +187,7 @@ static void init_source_info(pa_context *ctx, const pa_source_info *info, int eo
     }
 
     process_new_source(self, info);
-    if (self->source_id < 0)
+    if (self->source_id < 0 || self->source_id != info->index)
         return;
 
     op = pa_context_set_default_source(ctx, info->name, NULL, NULL);
@@ -340,7 +340,7 @@ static void init_sink_info(pa_context *ctx, const pa_sink_info *info, int eol, v
     }
 
     process_new_sink(self, info);
-    if (self->sink_id < 0)
+    if (self->sink_id < 0 || self->sink_id != info->index)
         return;
 
     op = pa_context_set_default_sink(ctx, info->name, NULL, NULL);
