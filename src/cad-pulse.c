@@ -190,6 +190,10 @@ static void init_source_info(pa_context *ctx, const pa_source_info *info, int eo
     if (self->source_id < 0)
         return;
 
+    op = pa_context_set_default_source(ctx, info->name, NULL, NULL);
+    if (op)
+        pa_operation_unref(op);
+
     target_port = get_available_source_port(info, NULL);
     if (target_port) {
         op = pa_context_set_source_port_by_index(ctx, self->source_id,
@@ -338,6 +342,10 @@ static void init_sink_info(pa_context *ctx, const pa_sink_info *info, int eol, v
     process_new_sink(self, info);
     if (self->sink_id < 0)
         return;
+
+    op = pa_context_set_default_sink(ctx, info->name, NULL, NULL);
+    if (op)
+        pa_operation_unref(op);
 
     target_port = get_available_sink_port(info, NULL);
     if (target_port) {
