@@ -149,7 +149,7 @@ static void process_new_source(CadPulse *self, const pa_source_info *info)
     prop = pa_proplist_gets(info->proplist, PA_PROP_DEVICE_CLASS);
     if (prop && strcmp(prop, SINK_CLASS) != 0)
         return;
-    if (g_str_has_suffix(info->name, "monitor"))
+    if (info->monitor_of_sink != PA_INVALID_INDEX)
         return;
     if (info->card != self->card_id || self->source_id != -1)
         return;
