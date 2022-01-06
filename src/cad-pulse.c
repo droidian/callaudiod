@@ -149,6 +149,8 @@ static void process_new_source(CadPulse *self, const pa_source_info *info)
     prop = pa_proplist_gets(info->proplist, PA_PROP_DEVICE_CLASS);
     if (prop && strcmp(prop, SINK_CLASS) != 0)
         return;
+    if (g_str_has_suffix(info->name, "monitor"))
+        return;
     if (info->card != self->card_id || self->source_id != -1)
         return;
 
@@ -500,7 +502,7 @@ static void changed_cb(pa_context *ctx, pa_subscription_event_type_t type, uint3
             g_hash_table_destroy(self->source_ports);
             self->source_ports = NULL;
         } else if (kind == PA_SUBSCRIPTION_EVENT_NEW) {
-            g_debug("new sink %u", idx);
+            g_debug("new source %u", idx);
             op = pa_context_get_source_info_by_index(ctx, idx, init_source_info, self);
             if (op)
                 pa_operation_unref(op);
