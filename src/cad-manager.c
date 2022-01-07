@@ -22,6 +22,15 @@ typedef struct _CadManager {
     CallAudioMicState mic_state;
 } CadManager;
 
+enum {
+    PROP_0,
+    PROP_AUDIO_MODE,
+    PROP_SPEAKER_STATE,
+    PROP_MIC_STATE,
+    PROP_LAST_PROP
+};
+static GParamSpec *props[PROP_LAST_PROP];
+
 static void cad_manager_call_audio_iface_init(CallAudioDbusCallAudioIface *iface);
 
 G_DEFINE_TYPE_WITH_CODE(CadManager, cad_manager,
@@ -41,20 +50,32 @@ static void complete_command_cb(CadOperation *op)
         case CAD_OPERATION_SELECT_MODE:
             CallAudioMode new_audio_mode = GPOINTER_TO_UINT(op->value);
             call_audio_dbus_call_audio_complete_select_mode(op->object, op->invocation, op->success);
-            manager->audio_mode = new_audio_mode;
+            if (manager->audio_mode != new_audio_mode) {
+                manager->audio_mode = new_audio_mode;
+                g_object_notify_by_pspec(G_OBJECT(manager), props[PROP_AUDIO_MODE]);
+            }
             /* The microphone gets unmuted as well when switching back to the default profile */
-            if (new_audio_mode == CALL_AUDIO_MODE_DEFAULT)
+            if (new_audio_mode == CALL_AUDIO_MODE_DEFAULT &&
+                manager->mic_state != CALL_AUDIO_MIC_ON) {
                 manager->mic_state = CALL_AUDIO_MIC_ON;
+                g_object_notify_by_pspec(G_OBJECT(manager), props[PROP_MIC_STATE]);
+            }
             break;
         case CAD_OPERATION_ENABLE_SPEAKER:
             CallAudioSpeakerState new_speaker_state = GPOINTER_TO_UINT(op->value);
             call_audio_dbus_call_audio_complete_enable_speaker(op->object, op->invocation, op->success);
-            manager->speaker_state = new_speaker_state;
+            if (manager->speaker_state != new_speaker_state) {
+                manager->speaker_state = new_speaker_state;
+                g_object_notify_by_pspec(G_OBJECT(manager), props[PROP_SPEAKER_STATE]);
+            }
             break;
         case CAD_OPERATION_MUTE_MIC:
             CallAudioMicState new_mic_state = GPOINTER_TO_UINT(op->value);
             call_audio_dbus_call_audio_complete_mute_mic(op->object, op->invocation, op->success);
-            manager->mic_state = new_mic_state;
+            if (manager->mic_state != new_mic_state) {
+                manager->mic_state = new_mic_state;
+                g_object_notify_by_pspec(G_OBJECT(manager), props[PROP_MIC_STATE]);
+            }
             break;
         default:
             g_critical("unknown operation %d", op->type);
@@ -103,6 +124,12 @@ static gboolean cad_manager_handle_select_mode(CallAudioDbusCallAudio *object,
     return TRUE;
 }
 
+static CallAudioMode
+cad_manager_get_audio_mode(CallAudioDbusCallAudio *object)
+{
+    return CAD_MANAGER(object)->audio_mode;
+}
+
 static gboolean cad_manager_handle_enable_speaker(CallAudioDbusCallAudio *object,
                                                   GDBusMethodInvocation *invocation,
                                                   gboolean enable)
@@ -128,6 +155,12 @@ static gboolean cad_manager_handle_enable_speaker(CallAudioDbusCallAudio *object
     cad_pulse_enable_speaker(enable, op);
 
     return TRUE;
+}
+
+static CallAudioSpeakerState
+cad_manager_get_speaker_state(CallAudioDbusCallAudio *object)
+{
+    return CAD_MANAGER(object)->speaker_state;
 }
 
 static gboolean cad_manager_handle_mute_mic(CallAudioDbusCallAudio *object,
@@ -157,15 +190,71 @@ static gboolean cad_manager_handle_mute_mic(CallAudioDbusCallAudio *object,
     return TRUE;
 }
 
+static CallAudioMicState
+cad_manager_get_mic_state(CallAudioDbusCallAudio *object)
+{
+    return CAD_MANAGER(object)->mic_state;
+}
+
+static void
+cad_manager_get_property(GObject *object,
+                         guint prop_id,
+                         GValue *value,
+                         GParamSpec *pspec)
+{
+    CadManager *self = CAD_MANAGER(object);
+
+    switch (prop_id) {
+    case PROP_AUDIO_MODE:
+        g_value_set_uint(value, self->audio_mode);
+        break;
+    case PROP_SPEAKER_STATE:
+        g_value_set_uint(value, self->speaker_state);
+        break;
+    case PROP_MIC_STATE:
+        g_value_set_uint(value, self->mic_state);
+        break;
+    default:
+        G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
+        break;
+    }
+}
+
+static void
+cad_manager_set_property(GObject *object,
+                         guint prop_id,
+                         const GValue *value,
+                         GParamSpec *pspec)
+{
+    /* Properties should only be set through the DBus API */
+    G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
+}
+
 static void cad_manager_call_audio_iface_init(CallAudioDbusCallAudioIface *iface)
 {
     iface->handle_select_mode = cad_manager_handle_select_mode;
+    iface->get_audio_mode = cad_manager_get_audio_mode;
     iface->handle_enable_speaker = cad_manager_handle_enable_speaker;
+    iface->get_speaker_state = cad_manager_get_speaker_state;
     iface->handle_mute_mic = cad_manager_handle_mute_mic;
+    iface->get_mic_state = cad_manager_get_mic_state;
 }
 
 static void cad_manager_class_init(CadManagerClass *klass)
 {
+    GObjectClass *object_class = G_OBJECT_CLASS(klass);
+
+    object_class->get_property = cad_manager_get_property;
+    object_class->set_property = cad_manager_set_property;
+
+    g_object_class_override_property(object_class, PROP_AUDIO_MODE, "audio-mode");
+    props[PROP_AUDIO_MODE] = g_object_class_find_property(object_class, "audio-mode");
+
+    g_object_class_override_property(object_class, PROP_SPEAKER_STATE, "speaker-state");
+    props[PROP_SPEAKER_STATE] = g_object_class_find_property(object_class, "speaker-state");
+
+    g_object_class_override_property(object_class, PROP_MIC_STATE, "mic-state");
+    props[PROP_MIC_STATE] = g_object_class_find_property(object_class, "mic-state");
 }
 
 static void cad_manager_init(CadManager *self)
