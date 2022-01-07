@@ -57,7 +57,9 @@ gboolean call_audio_init(GError **error)
         return TRUE;
 
     _proxy = call_audio_dbus_call_audio_proxy_new_for_bus_sync(
-                                    CALLAUDIO_DBUS_TYPE,0, CALLAUDIO_DBUS_NAME,
+                                    CALLAUDIO_DBUS_TYPE,
+                                    G_DBUS_PROXY_FLAGS_NONE,
+                                    CALLAUDIO_DBUS_NAME,
                                     CALLAUDIO_DBUS_PATH, NULL, error);
     if (!_proxy)
         return FALSE;
