@@ -64,15 +64,18 @@ gboolean call_audio_select_mode      (CallAudioMode mode, GError **error);
 gboolean call_audio_select_mode_async(CallAudioMode     mode,
                                       CallAudioCallback cb,
                                       gpointer          data);
+CallAudioMode call_audio_get_audio_mode(void);
 
 gboolean call_audio_enable_speaker      (gboolean enable, GError **error);
 gboolean call_audio_enable_speaker_async(gboolean          enable,
                                          CallAudioCallback cb,
                                          gpointer          data);
+CallAudioSpeakerState call_audio_get_speaker_state(void);
 
 gboolean call_audio_mute_mic      (gboolean mute, GError **error);
 gboolean call_audio_mute_mic_async(gboolean          mute,
                                    CallAudioCallback cb,
                                    gpointer          data);
+CallAudioMicState call_audio_get_mic_state(void);
 
 G_END_DECLS

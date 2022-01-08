@@ -171,6 +171,19 @@ gboolean call_audio_select_mode(CallAudioMode mode, GError **error)
     return (ret && success);
 }
 
+/**
+ * call_audio_get_audio_mode:
+ *
+ * Returns: The selected #CallAudioMode.
+ */
+CallAudioMode call_audio_get_audio_mode(void)
+{
+    if (!_initted)
+        return CALL_AUDIO_MODE_UNKNOWN;
+
+    return call_audio_dbus_call_audio_get_audio_mode(_proxy);
+}
+
 static void enable_speaker_done(GObject *object, GAsyncResult *result, gpointer data)
 {
     CallAudioDbusCallAudio *proxy = CALL_AUDIO_DBUS_CALL_AUDIO(object);
@@ -217,6 +230,20 @@ gboolean call_audio_enable_speaker_async(gboolean          enable,
                                                    enable_speaker_done, async_data);
 
     return TRUE;
+}
+
+/**
+ * call_audio_get_speaker_state:
+ *
+ * Returns: %CALL_AUDIO_SPEAKER_ON if the speaker is on, %CALL_AUDIO_SPEAKER_OFF if it is off or
+ * %CALL_AUDIO_SPEAKER_UNKNOWN if the state is not known.
+ */
+CallAudioSpeakerState call_audio_get_speaker_state(void)
+{
+    if (!_initted)
+        return CALL_AUDIO_SPEAKER_UNKNOWN;
+
+    return call_audio_dbus_call_audio_get_speaker_state(_proxy);
 }
 
 /**
@@ -320,4 +347,18 @@ gboolean call_audio_mute_mic(gboolean mute, GError **error)
     g_debug("MuteMic %s: success=%d", ret ? "succeeded" : "failed", success);
 
     return (ret && success);
+}
+
+/**
+ * call_audio_get_mic_state:
+ *
+ * Returns: %CALL_AUDIO_MIC_ON if the microphone is on, %CALL_AUDIO_MIC_OFF if it is off or
+ * %CALL_AUDIO_MIC_UNKNOWN if the state is not known.
+ */
+CallAudioMicState call_audio_get_mic_state(void)
+{
+    if (!_initted)
+        return CALL_AUDIO_MIC_UNKNOWN;
+
+    return call_audio_dbus_call_audio_get_mic_state(_proxy);
 }
