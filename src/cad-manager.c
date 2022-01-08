@@ -135,16 +135,6 @@ static gboolean cad_manager_handle_mute_mic(CallAudioDbusCallAudio *object,
     return TRUE;
 }
 
-static void cad_manager_constructed(GObject *object)
-{
-    G_OBJECT_CLASS(cad_manager_parent_class)->constructed(object);
-}
-
-static void cad_manager_dispose(GObject *object)
-{
-    G_OBJECT_CLASS(cad_manager_parent_class)->dispose(object);
-}
-
 static void cad_manager_call_audio_iface_init(CallAudioDbusCallAudioIface *iface)
 {
     iface->handle_select_mode = cad_manager_handle_select_mode;
@@ -154,10 +144,6 @@ static void cad_manager_call_audio_iface_init(CallAudioDbusCallAudioIface *iface
 
 static void cad_manager_class_init(CadManagerClass *klass)
 {
-    GObjectClass *object_class = G_OBJECT_CLASS(klass);
-
-    object_class->constructed = cad_manager_constructed;
-    object_class->dispose = cad_manager_dispose;
 }
 
 static void cad_manager_init(CadManager *self)
