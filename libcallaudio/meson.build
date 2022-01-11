@@ -15,8 +15,16 @@ libcallaudio_headers = [
   'libcallaudio.h',
 ]
 
+libcallaudio_enum_sources = gnome.mkenums_simple(
+  'libcallaudio-enums',
+   sources : libcallaudio_headers,
+   install_header : true,
+   install_dir : libcallaudio_header_dir,
+)
+
 libcallaudio_sources = [
   generated_dbus_sources,
+  libcallaudio_enum_sources,
   libcallaudio_headers,
   'libcallaudio.c',
 ]
@@ -47,7 +55,7 @@ libcallaudio = build_target(
 )
 
 libcallaudio_dep = declare_dependency(
-  sources : [generated_dbus_sources],
+  sources : [generated_dbus_sources, libcallaudio_enum_sources[1]],
   link_with : libcallaudio,
   dependencies: libcallaudio_deps,
   include_directories : libcallaudio_inc,

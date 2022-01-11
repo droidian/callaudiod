@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include "libcallaudio-enums.h"
+
 #include <glib.h>
 
 G_BEGIN_DECLS
