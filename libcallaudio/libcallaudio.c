@@ -115,6 +115,7 @@ static void select_mode_done(GObject *object, GAsyncResult *result, gpointer dat
 
     if (async_data && async_data->cb)
         async_data->cb(ret && success, error, async_data->user_data);
+    g_free(async_data);
 }
 
 /**
@@ -293,6 +294,7 @@ static void mute_mic_done(GObject *object, GAsyncResult *result, gpointer data)
 
     if (async_data && async_data->cb)
         async_data->cb(ret && success, error, async_data->user_data);
+    g_free(async_data);
 }
 
 /**
