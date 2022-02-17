@@ -122,7 +122,8 @@ static void select_mode_done(GObject *object, GAsyncResult *result, gpointer dat
  * call_audio_select_mode_async:
  * @mode: Audio mode to select
  * @cb: Function to be called when operation completes
- * @data: User data to be passed to the callback function after completion
+ * @data: User data to be passed to the callback function after completion. This
+ *        data is owned by the caller, which is responsible for freeing it.
  *
  * Select the audio mode to use.
  */
@@ -205,13 +206,15 @@ static void enable_speaker_done(GObject *object, GAsyncResult *result, gpointer 
 
     if (async_data && async_data->cb)
         async_data->cb(ret && success, error, async_data->user_data);
+    g_free(async_data);
 }
 
 /**
  * call_audio_enable_speaker_async:
  * @enable: Desired speaker state
  * @cb: Function to be called when operation completes
- * @data: User data to be passed to the callback function after completion
+ * @data: User data to be passed to the callback function after completion. This
+ *        data is owned by the caller, which is responsible for freeing it.
  *
  * Enable or disable speaker output.
  */
@@ -301,7 +304,8 @@ static void mute_mic_done(GObject *object, GAsyncResult *result, gpointer data)
  * call_audio_mute_mic_async:
  * @mute: %TRUE to mute the microphone, or %FALSE to unmute it
  * @cb: Function to be called when operation completes
- * @data: User data to be passed to the callback function after completion
+ * @data: User data to be passed to the callback function after completion. This
+ *        data is owned by the caller, which is responsible for freeing it.
  *
  * Mute or unmute microphone.
  */
