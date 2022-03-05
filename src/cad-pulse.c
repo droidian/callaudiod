@@ -7,6 +7,7 @@
 
 #define G_LOG_DOMAIN "callaudiod-pulse"
 
+#include "cad-manager.h"
 #include "cad-pulse.h"
 
 #include <glib/gi18n.h>
@@ -30,6 +31,8 @@
 struct _CadPulse
 {
     GObject parent_instance;
+
+    GObject *manager;
 
     pa_glib_mainloop  *loop;
     pa_context        *ctx;
@@ -200,6 +203,7 @@ static void init_source_info(pa_context *ctx, const pa_source_info *info, int eo
             self->mic_state = CALL_AUDIO_MIC_OFF;
         else
             self->mic_state = CALL_AUDIO_MIC_ON;
+        g_object_set(self->manager, "mic-state", self->mic_state, NULL);
     }
 
     target_port = get_available_source_port(info, NULL);
@@ -372,6 +376,7 @@ static void init_sink_info(pa_context *ctx, const pa_sink_info *info, int eol, v
         case CALL_AUDIO_MODE_CALL:
             if (g_strcmp0(info->active_port->name, self->speaker_port) == 0) {
                 self->speaker_state = CALL_AUDIO_SPEAKER_ON;
+                g_object_set(self->manager, "speaker-state", self->speaker_state, NULL);
                 /*
                  * callaudiod likely restarted after being killed during a call
                  * during which the speaker was enabled. End processing here so
@@ -394,6 +399,7 @@ static void init_sink_info(pa_context *ctx, const pa_sink_info *info, int eol, v
              */
             if (g_strcmp0(info->active_port->name, self->earpiece_port) == 0) {
                 self->audio_mode = CALL_AUDIO_MODE_CALL;
+                g_object_set(self->manager, "audio-mode", self->audio_mode, NULL);
                 /*
                  * Don't touch routing as we're likely in the middle of a call,
                  * see above.
@@ -401,11 +407,14 @@ static void init_sink_info(pa_context *ctx, const pa_sink_info *info, int eol, v
                 return;
             } else {
                 self->audio_mode = CALL_AUDIO_MODE_DEFAULT;
+                g_object_set(self->manager, "audio-mode", self->audio_mode, NULL);
             }
             break;
         default:
             break;
         }
+
+        g_object_set(self->manager, "speaker-state", self->speaker_state, NULL);
     }
 
     target_port = get_available_sink_port(info, NULL);
@@ -493,6 +502,10 @@ static void init_card_info(pa_context *ctx, const pa_card_info *info, int eol, v
             break;
         }
     }
+
+    // We were able determine the current mode, set the corresponding D-Bus property
+    if (self->audio_mode != CALL_AUDIO_MODE_UNKNOWN)
+        g_object_set(self->manager, "audio-mode", self->audio_mode, NULL);
 
     g_debug("CARD:   %s voice profile", self->has_voice_profile ? "has" : "doesn't have");
 
@@ -720,6 +733,7 @@ static void cad_pulse_class_init(CadPulseClass *klass)
 
 static void cad_pulse_init(CadPulse *self)
 {
+    self->manager = G_OBJECT(cad_manager_get_default());
     self->audio_mode = CALL_AUDIO_MODE_UNKNOWN;
     self->speaker_state = CALL_AUDIO_SPEAKER_UNKNOWN;
     self->mic_state = CALL_AUDIO_MIC_UNKNOWN;
@@ -764,11 +778,13 @@ static void operation_complete_cb(pa_context *ctx, int success, void *data)
                 case CAD_OPERATION_SELECT_MODE:
                     if (operation->pulse->audio_mode != new_value) {
                         operation->pulse->audio_mode = new_value;
+                        g_object_set(operation->pulse->manager, "audio-mode", new_value, NULL);
                     }
                     break;
                 case CAD_OPERATION_ENABLE_SPEAKER:
                     if (operation->pulse->speaker_state != new_value) {
                         operation->pulse->speaker_state = new_value;
+                        g_object_set(operation->pulse->manager, "speaker-state", new_value, NULL);
                     }
                     break;
                 case CAD_OPERATION_MUTE_MIC:
@@ -779,6 +795,7 @@ static void operation_complete_cb(pa_context *ctx, int success, void *data)
                     new_value = new_value ? CALL_AUDIO_MIC_OFF : CALL_AUDIO_MIC_ON;
                     if (operation->pulse->mic_state != new_value) {
                         operation->pulse->mic_state = new_value;
+                        g_object_set(operation->pulse->manager, "mic-state", new_value, NULL);
                     }
                     break;
                 default:
