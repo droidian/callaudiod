@@ -861,16 +861,21 @@ void cad_pulse_select_mode(guint mode, CadOperation *cad_op)
         /*
          * When ending a call, we want to make sure the mic doesn't stay muted
          */
-        CadPulseOperation *unmute_op = g_new0(CadPulseOperation, 1);
+        CadOperation *unmute_op = g_new0(CadOperation, 1);
+        unmute_op->type = CAD_OPERATION_MUTE_MIC;
 
-        unmute_op->pulse = operation->pulse;
-        unmute_op->value = FALSE;
+        cad_pulse_mute_mic(FALSE, unmute_op);
 
-        op = pa_context_get_source_info_by_index(unmute_op->pulse->ctx,
-                                                 unmute_op->pulse->source_id,
-                                                 set_mic_mute, unmute_op);
-        if (op)
-            pa_operation_unref(op);
+        /*
+         * If the card has a dedicated voice profile, disable speaker so it
+         * doesn't get automatically enabled for next call.
+         */
+        if (operation->pulse->has_voice_profile) {
+            CadOperation *disable_speaker_op = g_new0(CadOperation, 1);
+            disable_speaker_op->type = CAD_OPERATION_ENABLE_SPEAKER;
+
+            cad_pulse_enable_speaker(FALSE, disable_speaker_op);
+        }
     }
 
     if (operation->pulse->has_voice_profile) {
