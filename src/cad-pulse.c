@@ -752,7 +752,7 @@ static void set_output_port(pa_context *ctx, const pa_sink_info *info, int eol, 
     if (info->card != operation->pulse->card_id || info->index != operation->pulse->sink_id)
         return;
 
-    if (operation->op->type == CAD_OPERATION_SELECT_MODE) {
+    if (operation->op && operation->op->type == CAD_OPERATION_SELECT_MODE) {
         /*
          * When switching to voice call mode, we want to switch to any port
          * other than the speaker; this makes sure we use the headphones if they
