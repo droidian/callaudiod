@@ -86,8 +86,6 @@ static void complete_command_cb(CadOperation *op)
                                               G_DBUS_ERROR_FAILED,
                                               "Operation failed");
     }
-
-    free(op);
 }
 
 static gboolean cad_manager_handle_select_mode(CallAudioDbusCallAudio *object,

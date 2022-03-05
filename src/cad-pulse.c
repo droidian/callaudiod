@@ -42,11 +42,14 @@ struct _CadPulse
 
     gboolean has_voice_profile;
     gchar *speaker_port;
+    gchar *earpiece_port;
 
     GHashTable *sink_ports;
     GHashTable *source_ports;
 
-    CallAudioMode current_mode;
+    CallAudioMode audio_mode;
+    CallAudioSpeakerState speaker_state;
+    CallAudioMicState mic_state;
 };
 
 G_DEFINE_TYPE(CadPulse, cad_pulse, G_TYPE_OBJECT);
@@ -194,6 +197,13 @@ static void init_source_info(pa_context *ctx, const pa_source_info *info, int eo
     if (op)
         pa_operation_unref(op);
 
+    if (self->mic_state == CALL_AUDIO_MIC_UNKNOWN) {
+        if (info->mute)
+            self->mic_state = CALL_AUDIO_MIC_OFF;
+        else
+            self->mic_state = CALL_AUDIO_MIC_ON;
+    }
+
     target_port = get_available_source_port(info, NULL);
     if (target_port) {
         op = pa_context_set_source_port_by_index(ctx, self->source_id,
@@ -313,6 +323,15 @@ static void process_new_sink(CadPulse *self, const pa_sink_info *info)
             } else {
                 self->speaker_port = g_strdup(port->name);
             }
+        } else if (strstr(port->name, SND_USE_CASE_DEV_EARPIECE) != NULL) {
+            if (self->earpiece_port) {
+                if (strcmp(port->name, self->earpiece_port) != 0) {
+                    g_free(self->earpiece_port);
+                    self->earpiece_port = g_strdup(port->name);
+                }
+            } else {
+                self->earpiece_port = g_strdup(port->name);
+            }
         }
 
         if (port->available != PA_PORT_AVAILABLE_UNKNOWN) {
@@ -323,6 +342,7 @@ static void process_new_sink(CadPulse *self, const pa_sink_info *info)
     }
 
     g_debug("SINK:   speaker_port='%s'", self->speaker_port);
+    g_debug("SINK:   earpiece_port='%s'", self->earpiece_port);
 }
 
 static void init_sink_info(pa_context *ctx, const pa_sink_info *info, int eol, void *data)
@@ -346,6 +366,49 @@ static void init_sink_info(pa_context *ctx, const pa_sink_info *info, int eol, v
     op = pa_context_set_default_sink(ctx, info->name, NULL, NULL);
     if (op)
         pa_operation_unref(op);
+
+    if (self->speaker_state == CALL_AUDIO_SPEAKER_UNKNOWN) {
+        self->speaker_state = CALL_AUDIO_SPEAKER_OFF;
+
+        switch (self->audio_mode) {
+        case CALL_AUDIO_MODE_CALL:
+            if (g_strcmp0(info->active_port->name, self->speaker_port) == 0) {
+                self->speaker_state = CALL_AUDIO_SPEAKER_ON;
+                /*
+                 * callaudiod likely restarted after being killed during a call
+                 * during which the speaker was enabled. End processing here so
+                 * we keep the current routing and don't unexpectedly mess with
+                 * the call setup.
+                 */
+                return;
+            }
+            break;
+        case CALL_AUDIO_MODE_UNKNOWN:
+            /*
+             * Let's see if we can guess the current mode:
+             * - if current port is earpiece, we're likely in call mode
+             * - otherwise we're either in default mode, or call mode with
+             *   speaker enabled. Let's settle for the former as both situations
+             *   are technically equivalent.
+             *
+             * Note: this code path is only used when the card doesn't have a
+             * voice profile, otherwise things are easier to deal with.
+             */
+            if (g_strcmp0(info->active_port->name, self->earpiece_port) == 0) {
+                self->audio_mode = CALL_AUDIO_MODE_CALL;
+                /*
+                 * Don't touch routing as we're likely in the middle of a call,
+                 * see above.
+                 */
+                return;
+            } else {
+                self->audio_mode = CALL_AUDIO_MODE_DEFAULT;
+            }
+            break;
+        default:
+            break;
+        }
+    }
 
     target_port = get_available_sink_port(info, NULL);
     if (target_port) {
@@ -425,6 +488,10 @@ static void init_card_info(pa_context *ctx, const pa_card_info *info, int eol, v
 
         if (strstr(profile->name, SND_USE_CASE_VERB_VOICECALL) != NULL) {
             self->has_voice_profile = TRUE;
+            if (info->active_profile2 == profile)
+                self->audio_mode = CALL_AUDIO_MODE_CALL;
+            else
+                self->audio_mode = CALL_AUDIO_MODE_DEFAULT;
             break;
         }
     }
@@ -632,6 +699,8 @@ static void dispose(GObject *object)
 
     if (self->speaker_port)
         g_free(self->speaker_port);
+    if (self->earpiece_port)
+        g_free(self->earpiece_port);
 
     pulseaudio_cleanup(self);
 
@@ -653,6 +722,9 @@ static void cad_pulse_class_init(CadPulseClass *klass)
 
 static void cad_pulse_init(CadPulse *self)
 {
+    self->audio_mode = CALL_AUDIO_MODE_UNKNOWN;
+    self->speaker_state = CALL_AUDIO_SPEAKER_UNKNOWN;
+    self->mic_state = CALL_AUDIO_MIC_UNKNOWN;
 }
 
 CadPulse *cad_pulse_get_default(void)
@@ -684,12 +756,39 @@ static void operation_complete_cb(pa_context *ctx, int success, void *data)
     if (operation) {
         if (operation->op) {
             operation->op->success = (gboolean)!!success;
-            operation->op->callback(operation->op);
+            if (operation->op->callback)
+                operation->op->callback(operation->op);
 
-            if (operation->op->type == CAD_OPERATION_SELECT_MODE &&
-                operation->op->success) {
-                operation->pulse->current_mode = operation->value;
+            if (operation->op->success) {
+                guint new_value = GPOINTER_TO_UINT(operation->value);
+
+                switch (operation->op->type) {
+                case CAD_OPERATION_SELECT_MODE:
+                    if (operation->pulse->audio_mode != new_value) {
+                        operation->pulse->audio_mode = new_value;
+                    }
+                    break;
+                case CAD_OPERATION_ENABLE_SPEAKER:
+                    if (operation->pulse->speaker_state != new_value) {
+                        operation->pulse->speaker_state = new_value;
+                    }
+                    break;
+                case CAD_OPERATION_MUTE_MIC:
+                    /*
+                     * "Mute mic" operation's value is TRUE (1) for muting the mic,
+                     * so ensure mic_state carries the right value.
+                     */
+                    new_value = new_value ? CALL_AUDIO_MIC_OFF : CALL_AUDIO_MIC_ON;
+                    if (operation->pulse->mic_state != new_value) {
+                        operation->pulse->mic_state = new_value;
+                    }
+                    break;
+                default:
+                    break;
+                }
             }
+
+            free(operation->op);
         }
 
         free(operation);
