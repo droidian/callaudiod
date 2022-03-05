@@ -9,8 +9,6 @@
 
 #include "cad-pulse.h"
 
-#include "libcallaudio.h"
-
 #include <glib/gi18n.h>
 #include <glib-object.h>
 #include <pulse/pulseaudio.h>
@@ -1101,4 +1099,22 @@ error:
     }
     if (operation)
         free(operation);
+}
+
+CallAudioMode cad_pulse_get_audio_mode(void)
+{
+    CadPulse *self = cad_pulse_get_default();
+    return self->audio_mode;
+}
+
+CallAudioSpeakerState cad_pulse_get_speaker_state(void)
+{
+    CadPulse *self = cad_pulse_get_default();
+    return self->speaker_state;
+}
+
+CallAudioMicState cad_pulse_get_mic_state(void)
+{
+    CadPulse *self = cad_pulse_get_default();
+    return self->mic_state;
 }
