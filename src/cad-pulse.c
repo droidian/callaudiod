@@ -908,40 +908,6 @@ static void set_output_port(pa_context *ctx, const pa_sink_info *info, int eol, 
     }
 }
 
-static void set_mic_mute(pa_context *ctx, const pa_source_info *info, int eol, void *data)
-{
-    CadPulseOperation *operation = data;
-    pa_operation *op = NULL;
-
-    if (eol != 0)
-        return;
-
-    if (!info) {
-        g_critical("PA returned no source info (eol=%d)", eol);
-        return;
-    }
-
-    if (info->card != operation->pulse->card_id || info->index != operation->pulse->source_id)
-        return;
-
-    if (info->mute && !operation->value) {
-        g_debug("mic is muted, unmuting...");
-        op = pa_context_set_source_mute_by_index(ctx, operation->pulse->source_id, 0,
-                                                 operation_complete_cb, operation);
-    } else if (!info->mute && operation->value) {
-        g_debug("mic is active, muting...");
-        op = pa_context_set_source_mute_by_index(ctx, operation->pulse->source_id, 1,
-                                                 operation_complete_cb, operation);
-    }
-
-    if (op) {
-        pa_operation_unref(op);
-    } else {
-        g_debug("%s: nothing to be done", __func__);
-        operation_complete_cb(ctx, 1, operation);
-    }
-}
-
 /**
  * cad_pulse_select_mode:
  * @mode:
@@ -1101,11 +1067,24 @@ void cad_pulse_mute_mic(gboolean mute, CadOperation *cad_op)
     operation->op = cad_op;
     operation->value = (guint)mute;
 
-    op = pa_context_get_source_info_by_index(operation->pulse->ctx,
-                                             operation->pulse->source_id,
-                                             set_mic_mute, operation);
-    if (op)
+    if (operation->pulse->mic_state == CALL_AUDIO_MIC_OFF && !operation->value) {
+        g_debug("mic is muted, unmuting...");
+        op = pa_context_set_source_mute_by_index(operation->pulse->ctx,
+                                                 operation->pulse->source_id, 0,
+                                                 operation_complete_cb, operation);
+    } else if (operation->pulse->mic_state == CALL_AUDIO_MIC_ON && operation->value) {
+        g_debug("mic is active, muting...");
+        op = pa_context_set_source_mute_by_index(operation->pulse->ctx,
+                                                 operation->pulse->source_id, 1,
+                                                 operation_complete_cb, operation);
+    }
+
+    if (op) {
         pa_operation_unref(op);
+    } else {
+        g_debug("%s: nothing to be done", __func__);
+        operation_complete_cb(operation->pulse->ctx, 1, operation);
+    }
 
     return;
 
