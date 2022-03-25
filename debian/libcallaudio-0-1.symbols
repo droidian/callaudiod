@@ -13,6 +13,9 @@ libcallaudio-0.1.so.0 libcallaudio-0-1 #MINVER#
  call_audio_dbus_call_audio_complete_enable_speaker@LIBCALLAUDIO_0_0_0 0.0.1
  call_audio_dbus_call_audio_complete_mute_mic@LIBCALLAUDIO_0_0_0 0.0.1
  call_audio_dbus_call_audio_complete_select_mode@LIBCALLAUDIO_0_0_0 0.0.1
+ call_audio_dbus_call_audio_get_audio_mode@LIBCALLAUDIO_0_0_0 0.1.4
+ call_audio_dbus_call_audio_get_mic_state@LIBCALLAUDIO_0_0_0 0.1.4
+ call_audio_dbus_call_audio_get_speaker_state@LIBCALLAUDIO_0_0_0 0.1.4
  call_audio_dbus_call_audio_get_type@LIBCALLAUDIO_0_0_0 0.0.1
  call_audio_dbus_call_audio_interface_info@LIBCALLAUDIO_0_0_0 0.0.1
  call_audio_dbus_call_audio_override_properties@LIBCALLAUDIO_0_0_0 0.0.1
@@ -23,14 +26,23 @@ libcallaudio-0.1.so.0 libcallaudio-0-1 #MINVER#
  call_audio_dbus_call_audio_proxy_new_for_bus_finish@LIBCALLAUDIO_0_0_0 0.0.1
  call_audio_dbus_call_audio_proxy_new_for_bus_sync@LIBCALLAUDIO_0_0_0 0.0.1
  call_audio_dbus_call_audio_proxy_new_sync@LIBCALLAUDIO_0_0_0 0.0.1
+ call_audio_dbus_call_audio_set_audio_mode@LIBCALLAUDIO_0_0_0 0.1.4
+ call_audio_dbus_call_audio_set_mic_state@LIBCALLAUDIO_0_0_0 0.1.4
+ call_audio_dbus_call_audio_set_speaker_state@LIBCALLAUDIO_0_0_0 0.1.4
  call_audio_dbus_call_audio_skeleton_get_type@LIBCALLAUDIO_0_0_0 0.0.1
  call_audio_dbus_call_audio_skeleton_new@LIBCALLAUDIO_0_0_0 0.0.1
  call_audio_deinit@LIBCALLAUDIO_0_0_0 0.0.1
  call_audio_enable_speaker@LIBCALLAUDIO_0_0_0 0.0.4
  call_audio_enable_speaker_async@LIBCALLAUDIO_0_0_0 0.0.5
+ call_audio_get_audio_mode@LIBCALLAUDIO_0_0_0 0.1.4
+ call_audio_get_mic_state@LIBCALLAUDIO_0_0_0 0.1.4
+ call_audio_get_speaker_state@LIBCALLAUDIO_0_0_0 0.1.4
  call_audio_is_inited@LIBCALLAUDIO_0_0_0 0.0.4
  call_audio_init@LIBCALLAUDIO_0_0_0 0.0.1
+ call_audio_mic_state_get_type@LIBCALLAUDIO_0_0_0 0.1.4
+ call_audio_mode_get_type@LIBCALLAUDIO_0_0_0 0.1.4
  call_audio_mute_mic@LIBCALLAUDIO_0_0_0 0.0.4
  call_audio_mute_mic_async@LIBCALLAUDIO_0_0_0 0.0.5
  call_audio_select_mode@LIBCALLAUDIO_0_0_0 0.0.4
  call_audio_select_mode_async@LIBCALLAUDIO_0_0_0 0.0.5
+ call_audio_speaker_state_get_type@LIBCALLAUDIO_0_0_0 0.1.4
