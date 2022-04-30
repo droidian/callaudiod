@@ -29,6 +29,7 @@ typedef void (*CadOperationCallback)(CadOperation *op);
 
 struct _CadOperation {
     CadOperationType type;
+    gpointer value;
     CallAudioDbusCallAudio *object;
     GDBusMethodInvocation *invocation;
     CadOperationCallback callback;

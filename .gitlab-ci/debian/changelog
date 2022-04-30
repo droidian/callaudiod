@@ -1,0 +1,5 @@
+callaudiod (@@VERSION@@~ci-1) unstable; urgency=medium
+
+  * CI build
+
+ -- CI <ci@example.org>  Thu, 01 Jan 1970 00:00:00 +0000
