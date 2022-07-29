@@ -986,7 +986,8 @@ void cad_pulse_select_mode(guint mode, CadOperation *cad_op)
 error:
     if (cad_op) {
         cad_op->success = FALSE;
-        cad_op->callback(cad_op);
+        if (cad_op->callback)
+            cad_op->callback(cad_op);
     }
     if (operation)
         free(operation);
@@ -1032,7 +1033,8 @@ void cad_pulse_enable_speaker(gboolean enable, CadOperation *cad_op)
 error:
     if (cad_op) {
         cad_op->success = FALSE;
-        cad_op->callback(cad_op);
+        if (cad_op->callback)
+            cad_op->callback(cad_op);
     }
     if (operation)
         free(operation);
@@ -1091,7 +1093,8 @@ void cad_pulse_mute_mic(gboolean mute, CadOperation *cad_op)
 error:
     if (cad_op) {
         cad_op->success = FALSE;
-        cad_op->callback(cad_op);
+        if (cad_op->callback)
+            cad_op->callback(cad_op);
     }
     if (operation)
         free(operation);
