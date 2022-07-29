@@ -647,6 +647,8 @@ static void pulse_state_cb(pa_context *ctx, void *data)
         g_debug("PA is ready, initializing cards list");
         init_pulseaudio_objects(self);
         break;
+    default:
+        g_return_if_reached();
     }
 }
 
