@@ -59,7 +59,12 @@ static gboolean cad_manager_handle_select_mode(CallAudioDbusCallAudio *object,
 {
     CadOperation *op;
 
-    if (mode >= 2) {
+    switch ((CallAudioMode)mode) {
+    case CALL_AUDIO_MODE_DEFAULT:
+    case CALL_AUDIO_MODE_CALL:
+        break;
+    case CALL_AUDIO_MODE_UNKNOWN:
+    default:
         g_dbus_method_invocation_return_error(invocation, G_DBUS_ERROR,
                                               G_DBUS_ERROR_INVALID_ARGS,
                                               "Invalid mode %u", mode);
