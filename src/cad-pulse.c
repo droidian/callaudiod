@@ -913,7 +913,7 @@ static void set_output_port(pa_context *ctx, const pa_sink_info *info, int eol, 
  * @mode:
  * @cad_op:
  *
- * */
+ */
 void cad_pulse_select_mode(CallAudioMode mode, CadOperation *cad_op)
 {
     CadPulseOperation *operation = g_new(CadPulseOperation, 1);
