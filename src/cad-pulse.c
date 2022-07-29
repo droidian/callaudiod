@@ -926,10 +926,6 @@ void cad_pulse_select_mode(CallAudioMode mode, CadOperation *cad_op)
         g_critical("%s: no callaudiod operation", __func__);
         goto error;
     }
-    if (!operation) {
-        g_critical("%s: unable to allocate memory", __func__);
-        goto error;
-    }
 
     /*
      * Make sure cad_op is of the correct type!
@@ -1005,10 +1001,6 @@ void cad_pulse_enable_speaker(gboolean enable, CadOperation *cad_op)
         g_critical("%s: no callaudiod operation", __func__);
         goto error;
     }
-    if (!operation) {
-        g_critical("%s: unable to allocate memory", __func__);
-        goto error;
-    }
 
     /*
      * Make sure cad_op is of the correct type!
@@ -1050,10 +1042,6 @@ void cad_pulse_mute_mic(gboolean mute, CadOperation *cad_op)
 
     if (!cad_op) {
         g_critical("%s: no callaudiod operation", __func__);
-        goto error;
-    }
-    if (!operation) {
-        g_critical("%s: unable to allocate memory", __func__);
         goto error;
     }
 
