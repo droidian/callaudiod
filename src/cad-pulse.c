@@ -410,6 +410,7 @@ static void init_sink_info(pa_context *ctx, const pa_sink_info *info, int eol, v
                 g_object_set(self->manager, "audio-mode", self->audio_mode, NULL);
             }
             break;
+        case CALL_AUDIO_MODE_DEFAULT:
         default:
             break;
         }
