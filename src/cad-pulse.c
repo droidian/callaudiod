@@ -896,7 +896,7 @@ static void set_output_port(pa_context *ctx, const pa_sink_info *info, int eol, 
 
     g_debug("active port is '%s', target port is '%s'", info->active_port->name, target_port);
 
-    if (strcmp(info->active_port->name, target_port) != 0) {
+    if (target_port && strcmp(info->active_port->name, target_port) != 0) {
         g_debug("switching to target port '%s'", target_port);
         op = pa_context_set_sink_port_by_index(ctx, operation->pulse->sink_id,
                                                target_port,
