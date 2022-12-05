@@ -24,7 +24,7 @@
  *
  *    int main(void)
  *    {
- *       g_autoptr(GError) *err = NULL;
+ *       g_autoptr(GError) err = NULL;
  *       if (call_audio_init(&err)) {
  *         g_error("%s", err->message);
  *       }
