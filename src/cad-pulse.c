@@ -577,6 +577,15 @@ static void init_card_info(pa_context *ctx, const pa_card_info *info, int eol, v
     for (i = 0; i < info->n_ports; i++) {
         pa_card_port_info *port = info->ports[i];
 
+#ifdef WITH_DROID_SUPPORT
+        if (strstr(port->name, DROID_OUTPUT_PORT_SPEAKER) != NULL) {
+            has_speaker = TRUE;
+        } else if (strstr(port->name, DROID_OUTPUT_PORT_EARPIECE) != NULL ||
+                   strstr(port->name, DROID_OUTPUT_PORT_WIRED_HEADSET)  != NULL) {
+            has_earpiece = TRUE;
+        }
+#endif /* WITH_DROID_SUPPORT */
+
         if (strstr(port->name, SND_USE_CASE_DEV_SPEAKER) != NULL) {
             has_speaker = TRUE;
         } else if (strstr(port->name, SND_USE_CASE_DEV_EARPIECE) != NULL ||
