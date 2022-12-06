@@ -31,25 +31,22 @@ static void complete_command_cb(CadOperation *op)
     if (!op)
         return;
 
-    if (op->success) {
-        switch (op->type) {
-        case CAD_OPERATION_SELECT_MODE:
-            call_audio_dbus_call_audio_complete_select_mode(op->object, op->invocation, op->success);
-            break;
-        case CAD_OPERATION_ENABLE_SPEAKER:
-            call_audio_dbus_call_audio_complete_enable_speaker(op->object, op->invocation, op->success);
-            break;
-        case CAD_OPERATION_MUTE_MIC:
-            call_audio_dbus_call_audio_complete_mute_mic(op->object, op->invocation, op->success);
-            break;
-        default:
-            g_critical("unknown operation %d", op->type);
-            break;
-        }
-    } else {
+    switch (op->type) {
+    case CAD_OPERATION_SELECT_MODE:
+        call_audio_dbus_call_audio_complete_select_mode(op->object, op->invocation, op->success);
+        break;
+    case CAD_OPERATION_ENABLE_SPEAKER:
+        call_audio_dbus_call_audio_complete_enable_speaker(op->object, op->invocation, op->success);
+        break;
+    case CAD_OPERATION_MUTE_MIC:
+        call_audio_dbus_call_audio_complete_mute_mic(op->object, op->invocation, op->success);
+        break;
+    default:
         g_dbus_method_invocation_return_error(op->invocation, G_DBUS_ERROR,
-                                              G_DBUS_ERROR_FAILED,
-                                              "Operation failed");
+                                              G_DBUS_ERROR_UNKNOWN_METHOD,
+                                              "Unknown operation");
+        g_critical("unknown operation %d", op->type);
+        break;
     }
 }
 
