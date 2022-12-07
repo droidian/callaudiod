@@ -463,13 +463,9 @@ static void init_card_info(pa_context *ctx, const pa_card_info *info, int eol, v
         return;
     }
 
-    prop = pa_proplist_gets(info->proplist, PA_PROP_DEVICE_FORM_FACTOR);
-    g_debug("CARD: prop %s = %s", PA_PROP_DEVICE_FORM_FACTOR, prop);
-    if (prop && strcmp(prop, CARD_FORM_FACTOR) != 0)
-        return;
     prop = pa_proplist_gets(info->proplist, "alsa.card_name");
     g_debug("CARD: prop %s = %s", "alsa.card_name", prop);
-    if (prop && strcmp(prop, CARD_MODEM_NAME) == 0)
+    if (prop && strstr(prop, CARD_MODEM_NAME) != 0)
         return;
     prop = pa_proplist_gets(info->proplist, PA_PROP_DEVICE_CLASS);
     g_debug("CARD: prop %s = %s", PA_PROP_DEVICE_CLASS, prop);
