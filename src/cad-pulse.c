@@ -62,7 +62,7 @@ typedef struct _CadPulseOperation {
 
 static void pulseaudio_cleanup(CadPulse *self);
 static gboolean pulseaudio_connect(CadPulse *self);
-static gboolean init_pulseaudio_objects(CadPulse *self);
+static gboolean init_pulseaudio_objects(gpointer data);
 
 /******************************************************************************
  * Source management
@@ -453,8 +453,7 @@ static void init_card_info(pa_context *ctx, const pa_card_info *info, int eol, v
 
     if (eol != 0) {
         if (self->card_id < 0) {
-            g_critical("No suitable card found, retrying in 3s...");
-            g_timeout_add_seconds(3, G_SOURCE_FUNC(init_pulseaudio_objects), self);
+            g_critical("No suitable card found, stopping here...");
         }
         return;
     }
@@ -562,8 +561,9 @@ static void init_module_info(pa_context *ctx, const pa_module_info *info, int eo
     }
 }
 
-static gboolean init_pulseaudio_objects(CadPulse *self)
+static gboolean init_pulseaudio_objects(gpointer data)
 {
+    CadPulse *self = data;
     pa_operation *op;
 
     self->card_id = self->sink_id = self->source_id = -1;
@@ -613,7 +613,10 @@ static void changed_cb(pa_context *ctx, pa_subscription_event_type_t type, uint3
         }
         break;
     case PA_SUBSCRIPTION_EVENT_CARD:
-        if (idx == self->card_id && kind == PA_SUBSCRIPTION_EVENT_CHANGE) {
+        if (self->card_id < 0 && kind == PA_SUBSCRIPTION_EVENT_NEW) {
+            g_debug("card %u added, but no valid card detected yet, retrying...", idx);
+            g_idle_add(init_pulseaudio_objects, self);
+        } else if (idx == self->card_id && kind == PA_SUBSCRIPTION_EVENT_CHANGE) {
             g_debug("card %u changed", idx);
             if (self->sink_id != -1) {
                 op = pa_context_get_sink_info_by_index(ctx, self->sink_id,
@@ -659,7 +662,7 @@ static void pulse_state_cb(pa_context *ctx, void *data)
                              PA_SUBSCRIPTION_MASK_SINK  | PA_SUBSCRIPTION_MASK_SOURCE | PA_SUBSCRIPTION_MASK_CARD,
                              NULL, self);
         g_debug("PA is ready, initializing cards list");
-        init_pulseaudio_objects(self);
+        g_idle_add(init_pulseaudio_objects, self);
         break;
     default:
         g_return_if_reached();
