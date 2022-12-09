@@ -283,7 +283,7 @@ static void mute_mic_done(GObject *object, GAsyncResult *result, gpointer data)
     CallAudioDbusCallAudio *proxy = CALL_AUDIO_DBUS_CALL_AUDIO(object);
     CallAudioAsyncData *async_data = data;
     GError *error = NULL;
-    gboolean success = 0;
+    gboolean success = FALSE;
     gboolean ret;
 
     g_return_if_fail(CALL_AUDIO_DBUS_IS_CALL_AUDIO(proxy));
