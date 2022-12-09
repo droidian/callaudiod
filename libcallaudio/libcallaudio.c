@@ -107,9 +107,10 @@ static void select_mode_done(GObject *object, GAsyncResult *result, gpointer dat
 
     ret = call_audio_dbus_call_audio_call_select_mode_finish(proxy, &success,
                                                              result, &error);
-    if (!ret || !success) {
-        g_warning("SelectMode failed with code %d: %s", success, error->message);
-    }
+    if (!ret)
+        g_warning("SelectMode DBus method invocation failed: %s", error->message);
+    else if (success)
+        g_warning("SelectMode unsuccessful");
 
     g_debug("%s: D-bus call returned %d (success=%d)", __func__, ret, success);
 
@@ -198,9 +199,10 @@ static void enable_speaker_done(GObject *object, GAsyncResult *result, gpointer 
 
     ret = call_audio_dbus_call_audio_call_enable_speaker_finish(proxy, &success,
                                                                 result, &error);
-    if (!ret || !success) {
-        g_warning("EnableSpeaker failed with code %d: %s", success, error->message);
-    }
+    if (!ret)
+        g_warning("EnableSpeaker DBus method invocation failed: %s", error->message);
+    else if (success)
+        g_warning("EnableSpeaker unsuccessful");
 
     g_debug("%s: D-bus call returned %d (success=%d)", __func__, ret, success);
 
@@ -290,8 +292,10 @@ static void mute_mic_done(GObject *object, GAsyncResult *result, gpointer data)
 
     ret = call_audio_dbus_call_audio_call_mute_mic_finish(proxy, &success,
                                                           result, &error);
-    if (!ret || !success)
-        g_warning("MuteMic failed with code %d: %s", success, error->message);
+    if (!ret)
+        g_warning("MuteMic DBus method invocation failed: %s", error->message);
+    else if (success)
+        g_warning("MuteMic unsuccessful");
 
     g_debug("%s: D-bus call returned %d (success=%d)", __func__, ret, success);
 
