@@ -115,7 +115,7 @@ static void select_mode_done(GObject *object, GAsyncResult *result, gpointer dat
     g_debug("%s: D-bus call returned %d (success=%d)", __func__, ret, success);
 
     if (async_data && async_data->cb)
-        async_data->cb(ret && success, error, async_data->user_data);
+        async_data->cb(success, error, async_data->user_data);
     g_free(async_data);
 }
 
@@ -174,7 +174,7 @@ gboolean call_audio_select_mode(CallAudioMode mode, GError **error)
 
     g_debug("SelectMode %s: success=%d", ret ? "succeeded" : "failed", success);
 
-    return (ret && success);
+    return success;
 }
 
 /**
@@ -210,7 +210,7 @@ static void enable_speaker_done(GObject *object, GAsyncResult *result, gpointer 
     g_debug("%s: D-bus call returned %d (success=%d)", __func__, ret, success);
 
     if (async_data && async_data->cb)
-        async_data->cb(ret && success, error, async_data->user_data);
+        async_data->cb(success, error, async_data->user_data);
     g_free(async_data);
 }
 
@@ -283,7 +283,7 @@ gboolean call_audio_enable_speaker(gboolean enable, GError **error)
 
     g_debug("EnableSpeaker %s: success=%d", ret ? "succeeded" : "failed", success);
 
-    return (ret && success);
+    return success;
 }
 
 static void mute_mic_done(GObject *object, GAsyncResult *result, gpointer data)
@@ -306,7 +306,7 @@ static void mute_mic_done(GObject *object, GAsyncResult *result, gpointer data)
     g_debug("%s: D-bus call returned %d (success=%d)", __func__, ret, success);
 
     if (async_data && async_data->cb)
-        async_data->cb(ret && success, error, async_data->user_data);
+        async_data->cb(success, error, async_data->user_data);
     g_free(async_data);
 }
 
@@ -365,7 +365,7 @@ gboolean call_audio_mute_mic(gboolean mute, GError **error)
 
     g_debug("MuteMic %s: success=%d", ret ? "succeeded" : "failed", success);
 
-    return (ret && success);
+    return success;
 }
 
 /**
