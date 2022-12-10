@@ -166,8 +166,11 @@ gboolean call_audio_select_mode(CallAudioMode mode, GError **error)
 
     ret = call_audio_dbus_call_audio_call_select_mode_sync(_proxy, mode, &success,
                                                            NULL, error);
-    if (error && *error)
-        g_critical("Couldn't set mode %u: %s", mode, (*error)->message);
+    if (!ret) {
+        g_warning("SelectMode DBus method invocation failed: %s", (*error)->message);
+    } else if (success) {
+        g_warning("SelectMode (%u) unsuccessful", mode);
+    }
 
     g_debug("SelectMode %s: success=%d", ret ? "succeeded" : "failed", success);
 
@@ -272,8 +275,11 @@ gboolean call_audio_enable_speaker(gboolean enable, GError **error)
 
     ret = call_audio_dbus_call_audio_call_enable_speaker_sync(_proxy, enable, &success,
                                                               NULL, error);
-    if (error && *error)
-        g_critical("Couldn't enable speaker: %s", (*error)->message);
+    if (!ret) {
+        g_warning("EnableSpeaker DBus method invocation failed: %s", (*error)->message);
+    } else if (success) {
+        g_warning("EnableSpeaker (%sable) unsuccessful", enable ? "en" : "dis");
+    }
 
     g_debug("EnableSpeaker %s: success=%d", ret ? "succeeded" : "failed", success);
 
@@ -351,8 +357,11 @@ gboolean call_audio_mute_mic(gboolean mute, GError **error)
 
     ret = call_audio_dbus_call_audio_call_mute_mic_sync(_proxy, mute, &success,
                                                         NULL, error);
-    if (error && *error)
-        g_critical("Couldn't mute mic: %s", (*error)->message);
+    if (!ret) {
+        g_warning("MuteMic DBus method invocation failed: %s", (*error)->message);
+    } else if (success) {
+        g_warning("MuteMic (%smute) unsuccessful", mute ? "" : "un");
+    }
 
     g_debug("MuteMic %s: success=%d", ret ? "succeeded" : "failed", success);
 
