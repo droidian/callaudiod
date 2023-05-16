@@ -82,7 +82,6 @@ static const gchar *get_available_source_port(const pa_source_info *source, cons
         pa_source_port_info *port = source->ports[i];
 
         if ((exclude && strcmp(port->name, exclude) == 0) ||
-            (port->type != PA_DEVICE_PORT_TYPE_MIC && port->type != PA_DEVICE_PORT_TYPE_HANDSET ) ||
             port->available == PA_PORT_AVAILABLE_NO) {
             continue;
         }
