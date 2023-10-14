@@ -23,7 +23,6 @@
 #define APPLICATION_ID   "org.mobian-project.CallAudio"
 
 #define SINK_CLASS "sound"
-#define CARD_BUS_PATH_PREFIX "platform-"
 #define CARD_FORM_FACTOR "internal"
 #define CARD_MODEM_CLASS "modem"
 #define CARD_MODEM_NAME "Modem"
@@ -88,7 +87,7 @@ static void set_input_port(pa_context *ctx, const pa_source_info *info, int eol,
 
 static void pulseaudio_cleanup(CadPulse *self);
 static gboolean pulseaudio_connect(CadPulse *self);
-static gboolean init_pulseaudio_objects(CadPulse *self);
+static gboolean init_pulseaudio_objects(gpointer data);
 
 /******************************************************************************
  * Source management
@@ -412,12 +411,8 @@ static void process_new_sink(CadPulse *self, const pa_sink_info *info)
     for (i = 0; i < info->n_ports; i++) {
         pa_sink_port_info *port = info->ports[i];
 
-#ifdef WITH_DROID_SUPPORT
-        if ((self->sink_is_droid && strcmp(port->name, DROID_OUTPUT_PORT_SPEAKER) == 0) ||
-            (!self->sink_is_droid && strstr(port->name, SND_USE_CASE_DEV_SPEAKER) != 0)) {
-#else
-        if (strstr(port->name, SND_USE_CASE_DEV_SPEAKER) != NULL) {
-#endif /* WITH_DROID_SUPPORT */
+        switch (port->type) {
+          case PA_DEVICE_PORT_TYPE_SPEAKER:
             if (self->speaker_port) {
                 if (strcmp(port->name, self->speaker_port) != 0) {
                     g_free(self->speaker_port);
@@ -426,7 +421,10 @@ static void process_new_sink(CadPulse *self, const pa_sink_info *info)
             } else {
                 self->speaker_port = g_strdup(port->name);
             }
-        } else if (strstr(port->name, SND_USE_CASE_DEV_EARPIECE) != NULL) {
+            break;
+          case PA_DEVICE_PORT_TYPE_EARPIECE:
+          case PA_DEVICE_PORT_TYPE_HANDSET:
+          case PA_DEVICE_PORT_TYPE_HEADPHONES:
             if (self->earpiece_port) {
                 if (strcmp(port->name, self->earpiece_port) != 0) {
                     g_free(self->earpiece_port);
@@ -435,6 +433,9 @@ static void process_new_sink(CadPulse *self, const pa_sink_info *info)
             } else {
                 self->earpiece_port = g_strdup(port->name);
             }
+            break;
+          default:
+            break;
         }
 
         if (port->available != PA_PORT_AVAILABLE_UNKNOWN) {
@@ -511,6 +512,7 @@ static void init_sink_info(pa_context *ctx, const pa_sink_info *info, int eol, v
                 g_object_set(self->manager, "audio-mode", self->audio_mode, NULL);
             }
             break;
+        case CALL_AUDIO_MODE_DEFAULT:
         default:
             break;
         }
@@ -550,8 +552,7 @@ static void init_card_info(pa_context *ctx, const pa_card_info *info, int eol, v
 
     if (eol != 0) {
         if (self->card_id < 0) {
-            g_critical("No suitable card found, retrying in 3s...");
-            g_timeout_add_seconds(3, G_SOURCE_FUNC(init_pulseaudio_objects), self);
+            g_critical("No suitable card found, stopping here...");
         }
         return;
     }
@@ -561,21 +562,18 @@ static void init_card_info(pa_context *ctx, const pa_card_info *info, int eol, v
         return;
     }
 
-    prop = pa_proplist_gets(info->proplist, PA_PROP_DEVICE_BUS_PATH);
-    if (prop && !g_str_has_prefix(prop, CARD_BUS_PATH_PREFIX))
-        return;
-    prop = pa_proplist_gets(info->proplist, PA_PROP_DEVICE_FORM_FACTOR);
-    if (prop && strcmp(prop, CARD_FORM_FACTOR) != 0)
-        return;
     prop = pa_proplist_gets(info->proplist, "alsa.card_name");
-    if (prop && strcmp(prop, CARD_MODEM_NAME) == 0)
+    g_debug("CARD: prop %s = %s", "alsa.card_name", prop);
+    if (prop && strstr(prop, CARD_MODEM_NAME) != 0)
         return;
     prop = pa_proplist_gets(info->proplist, PA_PROP_DEVICE_CLASS);
+    g_debug("CARD: prop %s = %s", PA_PROP_DEVICE_CLASS, prop);
     if (prop && strcmp(prop, CARD_MODEM_CLASS) == 0)
         return;
 
     for (i = 0; i < info->n_ports; i++) {
         pa_card_port_info *port = info->ports[i];
+        g_debug("CARD: port %d/%d, name=%s", i, info->n_ports-1, port->name);
 
 #ifdef WITH_DROID_SUPPORT
         if (strstr(port->name, DROID_OUTPUT_PORT_SPEAKER) != NULL) {
@@ -586,11 +584,17 @@ static void init_card_info(pa_context *ctx, const pa_card_info *info, int eol, v
         }
 #endif /* WITH_DROID_SUPPORT */
 
-        if (strstr(port->name, SND_USE_CASE_DEV_SPEAKER) != NULL) {
+        switch (port->type) {
+          case PA_DEVICE_PORT_TYPE_SPEAKER:
             has_speaker = TRUE;
-        } else if (strstr(port->name, SND_USE_CASE_DEV_EARPIECE) != NULL ||
-                   strstr(port->name, SND_USE_CASE_DEV_HANDSET)  != NULL) {
+            break;
+          case PA_DEVICE_PORT_TYPE_EARPIECE:
+          case PA_DEVICE_PORT_TYPE_HANDSET:
+          case PA_DEVICE_PORT_TYPE_HEADPHONES:
             has_earpiece = TRUE;
+            break;
+          default:
+            break;
         }
     }
 
@@ -665,8 +669,9 @@ static void init_module_info(pa_context *ctx, const pa_module_info *info, int eo
     }
 }
 
-static gboolean init_pulseaudio_objects(CadPulse *self)
+static gboolean init_pulseaudio_objects(gpointer data)
 {
+    CadPulse *self = data;
     pa_operation *op;
 
     self->card_id = self->sink_id = self->source_id = -1;
@@ -716,7 +721,10 @@ static void changed_cb(pa_context *ctx, pa_subscription_event_type_t type, uint3
         }
         break;
     case PA_SUBSCRIPTION_EVENT_CARD:
-        if (idx == self->card_id && kind == PA_SUBSCRIPTION_EVENT_CHANGE) {
+        if (self->card_id < 0 && kind == PA_SUBSCRIPTION_EVENT_NEW) {
+            g_debug("card %u added, but no valid card detected yet, retrying...", idx);
+            g_idle_add(init_pulseaudio_objects, self);
+        } else if (idx == self->card_id && kind == PA_SUBSCRIPTION_EVENT_CHANGE) {
             g_debug("card %u changed", idx);
             if (self->sink_id != -1) {
                 op = pa_context_get_sink_info_by_index(ctx, self->sink_id,
@@ -762,8 +770,10 @@ static void pulse_state_cb(pa_context *ctx, void *data)
                              PA_SUBSCRIPTION_MASK_SINK  | PA_SUBSCRIPTION_MASK_SOURCE | PA_SUBSCRIPTION_MASK_CARD,
                              NULL, self);
         g_debug("PA is ready, initializing cards list");
-        init_pulseaudio_objects(self);
+        g_idle_add(init_pulseaudio_objects, self);
         break;
+    default:
+        g_return_if_reached();
     }
 }
 
@@ -1135,7 +1145,7 @@ static void set_output_port(pa_context *ctx, const pa_sink_info *info, int eol, 
 
     g_debug("active port is '%s', target port is '%s'", info->active_port->name, target_port);
 
-    if (strcmp(info->active_port->name, target_port) != 0) {
+    if (target_port && strcmp(info->active_port->name, target_port) != 0) {
         g_debug("switching to target port '%s'", target_port);
         op = pa_context_set_sink_port_by_index(ctx, operation->pulse->sink_id,
                                                target_port,
@@ -1193,18 +1203,14 @@ static void set_input_port(pa_context *ctx, const pa_source_info *info, int eol,
  * @mode:
  * @cad_op:
  *
- * */
-void cad_pulse_select_mode(guint mode, CadOperation *cad_op)
+ */
+void cad_pulse_select_mode(CallAudioMode mode, CadOperation *cad_op)
 {
     CadPulseOperation *operation = g_new(CadPulseOperation, 1);
     pa_operation *op = NULL;
 
     if (!cad_op) {
         g_critical("%s: no callaudiod operation", __func__);
-        goto error;
-    }
-    if (!operation) {
-        g_critical("%s: unable to allocate memory", __func__);
         goto error;
     }
 
@@ -1266,7 +1272,8 @@ void cad_pulse_select_mode(guint mode, CadOperation *cad_op)
 error:
     if (cad_op) {
         cad_op->success = FALSE;
-        cad_op->callback(cad_op);
+        if (cad_op->callback)
+            cad_op->callback(cad_op);
     }
     if (operation)
         free(operation);
@@ -1279,10 +1286,6 @@ void cad_pulse_enable_speaker(gboolean enable, CadOperation *cad_op)
 
     if (!cad_op) {
         g_critical("%s: no callaudiod operation", __func__);
-        goto error;
-    }
-    if (!operation) {
-        g_critical("%s: unable to allocate memory", __func__);
         goto error;
     }
 
@@ -1312,7 +1315,8 @@ void cad_pulse_enable_speaker(gboolean enable, CadOperation *cad_op)
 error:
     if (cad_op) {
         cad_op->success = FALSE;
-        cad_op->callback(cad_op);
+        if (cad_op->callback)
+            cad_op->callback(cad_op);
     }
     if (operation)
         free(operation);
@@ -1325,10 +1329,6 @@ void cad_pulse_mute_mic(gboolean mute, CadOperation *cad_op)
 
     if (!cad_op) {
         g_critical("%s: no callaudiod operation", __func__);
-        goto error;
-    }
-    if (!operation) {
-        g_critical("%s: unable to allocate memory", __func__);
         goto error;
     }
 
@@ -1371,7 +1371,8 @@ void cad_pulse_mute_mic(gboolean mute, CadOperation *cad_op)
 error:
     if (cad_op) {
         cad_op->success = FALSE;
-        cad_op->callback(cad_op);
+        if (cad_op->callback)
+            cad_op->callback(cad_op);
     }
     if (operation)
         free(operation);
