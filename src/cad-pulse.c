@@ -411,7 +411,18 @@ static void process_new_sink(CadPulse *self, const pa_sink_info *info)
     for (i = 0; i < info->n_ports; i++) {
         pa_sink_port_info *port = info->ports[i];
 
+#ifdef WITH_DROID_SUPPORT
+        uint32_t port_type = port->type;
+        if (self->sink_is_droid && strcmp(port->name, DROID_OUTPUT_PORT_SPEAKER) == 0) {
+            port_type = PA_DEVICE_PORT_TYPE_SPEAKER;
+        } else if (self->sink_is_droid && strcmp(port->name, DROID_OUTPUT_PORT_EARPIECE) == 0) {
+            port_type = PA_DEVICE_PORT_TYPE_EARPIECE;
+        }
+
+        switch (port_type) {
+#else
         switch (port->type) {
+#endif /* WITH_DROID_SUPPORT */
           case PA_DEVICE_PORT_TYPE_SPEAKER:
             if (self->speaker_port) {
                 if (strcmp(port->name, self->speaker_port) != 0) {
