@@ -57,7 +57,9 @@ gboolean call_audio_init(GError **error)
         return TRUE;
 
     _proxy = call_audio_dbus_call_audio_proxy_new_for_bus_sync(
-                                    CALLAUDIO_DBUS_TYPE,0, CALLAUDIO_DBUS_NAME,
+                                    CALLAUDIO_DBUS_TYPE,
+                                    G_DBUS_PROXY_FLAGS_NONE,
+                                    CALLAUDIO_DBUS_NAME,
                                     CALLAUDIO_DBUS_PATH, NULL, error);
     if (!_proxy)
         return FALSE;
@@ -97,7 +99,7 @@ static void select_mode_done(GObject *object, GAsyncResult *result, gpointer dat
 {
     CallAudioDbusCallAudio *proxy = CALL_AUDIO_DBUS_CALL_AUDIO(object);
     CallAudioAsyncData *async_data = data;
-    g_autoptr (GError) error = NULL;
+    GError *error = NULL;
     gboolean success = FALSE;
     gboolean ret;
 
@@ -113,13 +115,15 @@ static void select_mode_done(GObject *object, GAsyncResult *result, gpointer dat
 
     if (async_data && async_data->cb)
         async_data->cb(ret && success, error, async_data->user_data);
+    g_free(async_data);
 }
 
 /**
  * call_audio_select_mode_async:
  * @mode: Audio mode to select
  * @cb: Function to be called when operation completes
- * @data: User data to be passed to the callback function after completion
+ * @data: User data to be passed to the callback function after completion. This
+ *        data is owned by the caller, which is responsible for freeing it.
  *
  * Select the audio mode to use.
  */
@@ -169,6 +173,19 @@ gboolean call_audio_select_mode(CallAudioMode mode, GError **error)
     return (ret && success);
 }
 
+/**
+ * call_audio_get_audio_mode:
+ *
+ * Returns: The selected #CallAudioMode.
+ */
+CallAudioMode call_audio_get_audio_mode(void)
+{
+    if (!_initted)
+        return CALL_AUDIO_MODE_UNKNOWN;
+
+    return call_audio_dbus_call_audio_get_audio_mode(_proxy);
+}
+
 static void enable_speaker_done(GObject *object, GAsyncResult *result, gpointer data)
 {
     CallAudioDbusCallAudio *proxy = CALL_AUDIO_DBUS_CALL_AUDIO(object);
@@ -189,13 +206,15 @@ static void enable_speaker_done(GObject *object, GAsyncResult *result, gpointer 
 
     if (async_data && async_data->cb)
         async_data->cb(ret && success, error, async_data->user_data);
+    g_free(async_data);
 }
 
 /**
  * call_audio_enable_speaker_async:
  * @enable: Desired speaker state
  * @cb: Function to be called when operation completes
- * @data: User data to be passed to the callback function after completion
+ * @data: User data to be passed to the callback function after completion. This
+ *        data is owned by the caller, which is responsible for freeing it.
  *
  * Enable or disable speaker output.
  */
@@ -215,6 +234,20 @@ gboolean call_audio_enable_speaker_async(gboolean          enable,
                                                    enable_speaker_done, async_data);
 
     return TRUE;
+}
+
+/**
+ * call_audio_get_speaker_state:
+ *
+ * Returns: %CALL_AUDIO_SPEAKER_ON if the speaker is on, %CALL_AUDIO_SPEAKER_OFF if it is off or
+ * %CALL_AUDIO_SPEAKER_UNKNOWN if the state is not known.
+ */
+CallAudioSpeakerState call_audio_get_speaker_state(void)
+{
+    if (!_initted)
+        return CALL_AUDIO_SPEAKER_UNKNOWN;
+
+    return call_audio_dbus_call_audio_get_speaker_state(_proxy);
 }
 
 /**
@@ -264,13 +297,15 @@ static void mute_mic_done(GObject *object, GAsyncResult *result, gpointer data)
 
     if (async_data && async_data->cb)
         async_data->cb(ret && success, error, async_data->user_data);
+    g_free(async_data);
 }
 
 /**
  * call_audio_mute_mic_async:
  * @mute: %TRUE to mute the microphone, or %FALSE to unmute it
  * @cb: Function to be called when operation completes
- * @data: User data to be passed to the callback function after completion
+ * @data: User data to be passed to the callback function after completion. This
+ *        data is owned by the caller, which is responsible for freeing it.
  *
  * Mute or unmute microphone.
  */
@@ -318,4 +353,18 @@ gboolean call_audio_mute_mic(gboolean mute, GError **error)
     g_debug("MuteMic %s: success=%d", ret ? "succeeded" : "failed", success);
 
     return (ret && success);
+}
+
+/**
+ * call_audio_get_mic_state:
+ *
+ * Returns: %CALL_AUDIO_MIC_ON if the microphone is on, %CALL_AUDIO_MIC_OFF if it is off or
+ * %CALL_AUDIO_MIC_UNKNOWN if the state is not known.
+ */
+CallAudioMicState call_audio_get_mic_state(void)
+{
+    if (!_initted)
+        return CALL_AUDIO_MIC_UNKNOWN;
+
+    return call_audio_dbus_call_audio_get_mic_state(_proxy);
 }

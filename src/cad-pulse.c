@@ -7,9 +7,8 @@
 
 #define G_LOG_DOMAIN "callaudiod-pulse"
 
+#include "cad-manager.h"
 #include "cad-pulse.h"
-
-#include "libcallaudio.h"
 
 #include <glib/gi18n.h>
 #include <glib-object.h>
@@ -27,6 +26,7 @@
 #define CARD_BUS_PATH_PREFIX "platform-"
 #define CARD_FORM_FACTOR "internal"
 #define CARD_MODEM_CLASS "modem"
+#define CARD_MODEM_NAME "Modem"
 
 #define WITH_DROID_SUPPORT 1 /* FIXME: wire into meson */
 
@@ -47,6 +47,8 @@ struct _CadPulse
 {
     GObject parent_instance;
 
+    GObject *manager;
+
     pa_glib_mainloop  *loop;
     pa_context        *ctx;
 
@@ -61,11 +63,14 @@ struct _CadPulse
 
     gboolean has_voice_profile;
     gchar *speaker_port;
+    gchar *earpiece_port;
 
     GHashTable *sink_ports;
     GHashTable *source_ports;
 
-    CallAudioMode current_mode;
+    CallAudioMode audio_mode;
+    CallAudioSpeakerState speaker_state;
+    CallAudioMicState mic_state;
 };
 
 G_DEFINE_TYPE(CadPulse, cad_pulse, G_TYPE_OBJECT);
@@ -83,6 +88,7 @@ static void set_input_port(pa_context *ctx, const pa_source_info *info, int eol,
 
 static void pulseaudio_cleanup(CadPulse *self);
 static gboolean pulseaudio_connect(CadPulse *self);
+static gboolean init_pulseaudio_objects(CadPulse *self);
 
 /******************************************************************************
  * Source management
@@ -206,6 +212,8 @@ static void process_new_source(CadPulse *self, const pa_source_info *info)
     prop = pa_proplist_gets(info->proplist, PA_PROP_DEVICE_CLASS);
     if (prop && strcmp(prop, SINK_CLASS) != 0)
         return;
+    if (info->monitor_of_sink != PA_INVALID_INDEX)
+        return;
     if (info->card != self->card_id || self->source_id != -1)
         return;
 
@@ -247,8 +255,20 @@ static void init_source_info(pa_context *ctx, const pa_source_info *info, int eo
     }
 
     process_new_source(self, info);
-    if (self->source_id < 0)
+    if (self->source_id < 0 || self->source_id != info->index)
         return;
+
+    op = pa_context_set_default_source(ctx, info->name, NULL, NULL);
+    if (op)
+        pa_operation_unref(op);
+
+    if (self->mic_state == CALL_AUDIO_MIC_UNKNOWN) {
+        if (info->mute)
+            self->mic_state = CALL_AUDIO_MIC_OFF;
+        else
+            self->mic_state = CALL_AUDIO_MIC_ON;
+        g_object_set(self->manager, "mic-state", self->mic_state, NULL);
+    }
 
 #ifdef WITH_DROID_SUPPORT
     target_port = get_available_source_port(info, NULL, self->source_is_droid);
@@ -407,6 +427,15 @@ static void process_new_sink(CadPulse *self, const pa_sink_info *info)
             } else {
                 self->speaker_port = g_strdup(port->name);
             }
+        } else if (strstr(port->name, SND_USE_CASE_DEV_EARPIECE) != NULL) {
+            if (self->earpiece_port) {
+                if (strcmp(port->name, self->earpiece_port) != 0) {
+                    g_free(self->earpiece_port);
+                    self->earpiece_port = g_strdup(port->name);
+                }
+            } else {
+                self->earpiece_port = g_strdup(port->name);
+            }
         }
 
         if (port->available != PA_PORT_AVAILABLE_UNKNOWN) {
@@ -417,6 +446,7 @@ static void process_new_sink(CadPulse *self, const pa_sink_info *info)
     }
 
     g_debug("SINK:   speaker_port='%s'", self->speaker_port);
+    g_debug("SINK:   earpiece_port='%s'", self->earpiece_port);
 }
 
 static void init_sink_info(pa_context *ctx, const pa_sink_info *info, int eol, void *data)
@@ -434,8 +464,60 @@ static void init_sink_info(pa_context *ctx, const pa_sink_info *info, int eol, v
     }
 
     process_new_sink(self, info);
-    if (self->sink_id < 0)
+    if (self->sink_id < 0 || self->sink_id != info->index)
         return;
+
+    op = pa_context_set_default_sink(ctx, info->name, NULL, NULL);
+    if (op)
+        pa_operation_unref(op);
+
+    if (self->speaker_state == CALL_AUDIO_SPEAKER_UNKNOWN) {
+        self->speaker_state = CALL_AUDIO_SPEAKER_OFF;
+
+        switch (self->audio_mode) {
+        case CALL_AUDIO_MODE_CALL:
+            if (g_strcmp0(info->active_port->name, self->speaker_port) == 0) {
+                self->speaker_state = CALL_AUDIO_SPEAKER_ON;
+                g_object_set(self->manager, "speaker-state", self->speaker_state, NULL);
+                /*
+                 * callaudiod likely restarted after being killed during a call
+                 * during which the speaker was enabled. End processing here so
+                 * we keep the current routing and don't unexpectedly mess with
+                 * the call setup.
+                 */
+                return;
+            }
+            break;
+        case CALL_AUDIO_MODE_UNKNOWN:
+            /*
+             * Let's see if we can guess the current mode:
+             * - if current port is earpiece, we're likely in call mode
+             * - otherwise we're either in default mode, or call mode with
+             *   speaker enabled. Let's settle for the former as both situations
+             *   are technically equivalent.
+             *
+             * Note: this code path is only used when the card doesn't have a
+             * voice profile, otherwise things are easier to deal with.
+             */
+            if (g_strcmp0(info->active_port->name, self->earpiece_port) == 0) {
+                self->audio_mode = CALL_AUDIO_MODE_CALL;
+                g_object_set(self->manager, "audio-mode", self->audio_mode, NULL);
+                /*
+                 * Don't touch routing as we're likely in the middle of a call,
+                 * see above.
+                 */
+                return;
+            } else {
+                self->audio_mode = CALL_AUDIO_MODE_DEFAULT;
+                g_object_set(self->manager, "audio-mode", self->audio_mode, NULL);
+            }
+            break;
+        default:
+            break;
+        }
+
+        g_object_set(self->manager, "speaker-state", self->speaker_state, NULL);
+    }
 
 #ifdef WITH_DROID_SUPPORT
     target_port = get_available_sink_port(info, NULL, self->sink_is_droid);
@@ -461,11 +543,19 @@ static void init_sink_info(pa_context *ctx, const pa_sink_info *info, int eol, v
 static void init_card_info(pa_context *ctx, const pa_card_info *info, int eol, void *data)
 {
     CadPulse *self = data;
+    pa_operation *op;
     const gchar *prop;
+    gboolean has_speaker = FALSE;
+    gboolean has_earpiece = FALSE;
     guint i;
 
-    if (eol != 0)
+    if (eol != 0) {
+        if (self->card_id < 0) {
+            g_critical("No suitable card found, retrying in 3s...");
+            g_timeout_add_seconds(3, G_SOURCE_FUNC(init_pulseaudio_objects), self);
+        }
         return;
+    }
 
     if (!info) {
         g_critical("PA returned no card info (eol=%d)", eol);
@@ -478,9 +568,38 @@ static void init_card_info(pa_context *ctx, const pa_card_info *info, int eol, v
     prop = pa_proplist_gets(info->proplist, PA_PROP_DEVICE_FORM_FACTOR);
     if (prop && strcmp(prop, CARD_FORM_FACTOR) != 0)
         return;
+    prop = pa_proplist_gets(info->proplist, "alsa.card_name");
+    if (prop && strcmp(prop, CARD_MODEM_NAME) == 0)
+        return;
     prop = pa_proplist_gets(info->proplist, PA_PROP_DEVICE_CLASS);
     if (prop && strcmp(prop, CARD_MODEM_CLASS) == 0)
         return;
+
+    for (i = 0; i < info->n_ports; i++) {
+        pa_card_port_info *port = info->ports[i];
+
+#ifdef WITH_DROID_SUPPORT
+        if (strstr(port->name, DROID_OUTPUT_PORT_SPEAKER) != NULL) {
+            has_speaker = TRUE;
+        } else if (strstr(port->name, DROID_OUTPUT_PORT_EARPIECE) != NULL ||
+                   strstr(port->name, DROID_OUTPUT_PORT_WIRED_HEADSET)  != NULL) {
+            has_earpiece = TRUE;
+        }
+#endif /* WITH_DROID_SUPPORT */
+
+        if (strstr(port->name, SND_USE_CASE_DEV_SPEAKER) != NULL) {
+            has_speaker = TRUE;
+        } else if (strstr(port->name, SND_USE_CASE_DEV_EARPIECE) != NULL ||
+                   strstr(port->name, SND_USE_CASE_DEV_HANDSET)  != NULL) {
+            has_earpiece = TRUE;
+        }
+    }
+
+    if (!has_speaker || !has_earpiece) {
+        g_message("Card '%s' lacks speaker and/or earpiece port, skipping...",
+                  info->name);
+        return;
+    }
 
     self->card_id = info->index;
 
@@ -495,11 +614,27 @@ static void init_card_info(pa_context *ctx, const pa_card_info *info, int eol, v
         if (strstr(profile->name, SND_USE_CASE_VERB_VOICECALL) != NULL) {
 #endif /* WITH_DROID_SUPPORT */
             self->has_voice_profile = TRUE;
+            if (info->active_profile2 == profile)
+                self->audio_mode = CALL_AUDIO_MODE_CALL;
+            else
+                self->audio_mode = CALL_AUDIO_MODE_DEFAULT;
             break;
         }
     }
 
+    // We were able determine the current mode, set the corresponding D-Bus property
+    if (self->audio_mode != CALL_AUDIO_MODE_UNKNOWN)
+        g_object_set(self->manager, "audio-mode", self->audio_mode, NULL);
+
     g_debug("CARD:   %s voice profile", self->has_voice_profile ? "has" : "doesn't have");
+
+    /* Found a suitable card, let's prepare the sink/source */
+    op = pa_context_get_sink_info_list(self->ctx, init_sink_info, self);
+    if (op)
+        pa_operation_unref(op);
+    op = pa_context_get_source_info_list(self->ctx, init_source_info, self);
+    if (op)
+        pa_operation_unref(op);
 }
 
 /******************************************************************************
@@ -509,48 +644,44 @@ static void init_card_info(pa_context *ctx, const pa_card_info *info, int eol, v
  * state of PulseAudio objects
  ******************************************************************************/
 
- static void init_module_info(pa_context *ctx, const pa_module_info *info, int eol, void *data)
- {
-     pa_operation *op;
+static void init_module_info(pa_context *ctx, const pa_module_info *info, int eol, void *data)
+{
+    pa_operation *op;
 
-     if (eol != 0)
-         return;
+    if (eol != 0)
+        return;
 
-     if (!info) {
-         g_critical("PA returned no module info (eol=%d)", eol);
-         return;
-     }
+    if (!info) {
+        g_critical("PA returned no module info (eol=%d)", eol);
+        return;
+    }
 
-     g_debug("MODULE: idx=%u name='%s'", info->index, info->name);
+    g_debug("MODULE: idx=%u name='%s'", info->index, info->name);
 
-     if (strcmp(info->name, "module-switch-on-port-available") == 0) {
-         g_debug("MODULE: unloading '%s'", info->name);
-         op = pa_context_unload_module(ctx, info->index, NULL, NULL);
-         if (op)
-             pa_operation_unref(op);
-     }
- }
+    if (strcmp(info->name, "module-switch-on-port-available") == 0) {
+        g_debug("MODULE: unloading '%s'", info->name);
+        op = pa_context_unload_module(ctx, info->index, NULL, NULL);
+        if (op)
+            pa_operation_unref(op);
+    }
+}
 
- static void init_pulseaudio_objects(CadPulse *self)
- {
-     pa_operation *op;
+static gboolean init_pulseaudio_objects(CadPulse *self)
+{
+    pa_operation *op;
 
-     self->card_id = self->sink_id = self->source_id = -1;
-     self->sink_ports = self->source_ports = NULL;
+    self->card_id = self->sink_id = self->source_id = -1;
+    self->sink_ports = self->source_ports = NULL;
 
-     op = pa_context_get_card_info_list(self->ctx, init_card_info, self);
-     if (op)
-         pa_operation_unref(op);
-     op = pa_context_get_module_info_list(self->ctx, init_module_info, self);
-     if (op)
-         pa_operation_unref(op);
-     op = pa_context_get_sink_info_list(self->ctx, init_sink_info, self);
-     if (op)
-         pa_operation_unref(op);
-     op = pa_context_get_source_info_list(self->ctx, init_source_info, self);
-     if (op)
-         pa_operation_unref(op);
- }
+    op = pa_context_get_card_info_list(self->ctx, init_card_info, self);
+    if (op)
+        pa_operation_unref(op);
+    op = pa_context_get_module_info_list(self->ctx, init_module_info, self);
+    if (op)
+        pa_operation_unref(op);
+
+    return G_SOURCE_REMOVE;
+}
 
 static void changed_cb(pa_context *ctx, pa_subscription_event_type_t type, uint32_t idx, void *data)
 {
@@ -579,7 +710,7 @@ static void changed_cb(pa_context *ctx, pa_subscription_event_type_t type, uint3
             g_hash_table_destroy(self->source_ports);
             self->source_ports = NULL;
         } else if (kind == PA_SUBSCRIPTION_EVENT_NEW) {
-            g_debug("new sink %u", idx);
+            g_debug("new source %u", idx);
             op = pa_context_get_source_info_by_index(ctx, idx, init_source_info, self);
             if (op)
                 pa_operation_unref(op);
@@ -698,6 +829,8 @@ static void dispose(GObject *object)
 
     if (self->speaker_port)
         g_free(self->speaker_port);
+    if (self->earpiece_port)
+        g_free(self->earpiece_port);
 
     pulseaudio_cleanup(self);
 
@@ -719,6 +852,10 @@ static void cad_pulse_class_init(CadPulseClass *klass)
 
 static void cad_pulse_init(CadPulse *self)
 {
+    self->manager = G_OBJECT(cad_manager_get_default());
+    self->audio_mode = CALL_AUDIO_MODE_UNKNOWN;
+    self->speaker_state = CALL_AUDIO_SPEAKER_UNKNOWN;
+    self->mic_state = CALL_AUDIO_MIC_UNKNOWN;
 }
 
 CadPulse *cad_pulse_get_default(void)
@@ -750,12 +887,42 @@ static void operation_complete_cb(pa_context *ctx, int success, void *data)
     if (operation) {
         if (operation->op) {
             operation->op->success = (gboolean)!!success;
-            operation->op->callback(operation->op);
+            if (operation->op->callback)
+                operation->op->callback(operation->op);
 
-            if (operation->op->type == CAD_OPERATION_SELECT_MODE &&
-                operation->op->success) {
-                operation->pulse->current_mode = operation->value;
+            if (operation->op->success) {
+                guint new_value = GPOINTER_TO_UINT(operation->value);
+
+                switch (operation->op->type) {
+                case CAD_OPERATION_SELECT_MODE:
+                    if (operation->pulse->audio_mode != new_value) {
+                        operation->pulse->audio_mode = new_value;
+                        g_object_set(operation->pulse->manager, "audio-mode", new_value, NULL);
+                    }
+                    break;
+                case CAD_OPERATION_ENABLE_SPEAKER:
+                    if (operation->pulse->speaker_state != new_value) {
+                        operation->pulse->speaker_state = new_value;
+                        g_object_set(operation->pulse->manager, "speaker-state", new_value, NULL);
+                    }
+                    break;
+                case CAD_OPERATION_MUTE_MIC:
+                    /*
+                     * "Mute mic" operation's value is TRUE (1) for muting the mic,
+                     * so ensure mic_state carries the right value.
+                     */
+                    new_value = new_value ? CALL_AUDIO_MIC_OFF : CALL_AUDIO_MIC_ON;
+                    if (operation->pulse->mic_state != new_value) {
+                        operation->pulse->mic_state = new_value;
+                        g_object_set(operation->pulse->manager, "mic-state", new_value, NULL);
+                    }
+                    break;
+                default:
+                    break;
+                }
             }
+
+            free(operation->op);
         }
 
         free(operation);
@@ -930,7 +1097,7 @@ static void set_output_port(pa_context *ctx, const pa_sink_info *info, int eol, 
     if (info->card != operation->pulse->card_id || info->index != operation->pulse->sink_id)
         return;
 
-    if (operation->op->type == CAD_OPERATION_SELECT_MODE) {
+    if (operation->op && operation->op->type == CAD_OPERATION_SELECT_MODE) {
         /*
          * When switching to voice call mode, we want to switch to any port
          * other than the speaker; this makes sure we use the headphones if they
@@ -1022,40 +1189,6 @@ static void set_input_port(pa_context *ctx, const pa_source_info *info, int eol,
     }
 }
 
-static void set_mic_mute(pa_context *ctx, const pa_source_info *info, int eol, void *data)
-{
-    CadPulseOperation *operation = data;
-    pa_operation *op = NULL;
-
-    if (eol != 0)
-        return;
-
-    if (!info) {
-        g_critical("PA returned no source info (eol=%d)", eol);
-        return;
-    }
-
-    if (info->card != operation->pulse->card_id || info->index != operation->pulse->source_id)
-        return;
-
-    if (info->mute && !operation->value) {
-        g_debug("mic is muted, unmuting...");
-        op = pa_context_set_source_mute_by_index(ctx, operation->pulse->source_id, 0,
-                                                 operation_complete_cb, operation);
-    } else if (!info->mute && operation->value) {
-        g_debug("mic is active, muting...");
-        op = pa_context_set_source_mute_by_index(ctx, operation->pulse->source_id, 1,
-                                                 operation_complete_cb, operation);
-    }
-
-    if (op) {
-        pa_operation_unref(op);
-    } else {
-        g_debug("%s: nothing to be done", __func__);
-        operation_complete_cb(ctx, 1, operation);
-    }
-}
-
 /**
  * cad_pulse_select_mode:
  * @mode:
@@ -1089,16 +1222,21 @@ void cad_pulse_select_mode(guint mode, CadOperation *cad_op)
         /*
          * When ending a call, we want to make sure the mic doesn't stay muted
          */
-        CadPulseOperation *unmute_op = g_new0(CadPulseOperation, 1);
+        CadOperation *unmute_op = g_new0(CadOperation, 1);
+        unmute_op->type = CAD_OPERATION_MUTE_MIC;
 
-        unmute_op->pulse = operation->pulse;
-        unmute_op->value = FALSE;
+        cad_pulse_mute_mic(FALSE, unmute_op);
 
-        op = pa_context_get_source_info_by_index(unmute_op->pulse->ctx,
-                                                 unmute_op->pulse->source_id,
-                                                 set_mic_mute, unmute_op);
-        if (op)
-            pa_operation_unref(op);
+        /*
+         * If the card has a dedicated voice profile, disable speaker so it
+         * doesn't get automatically enabled for next call.
+         */
+        if (operation->pulse->has_voice_profile) {
+            CadOperation *disable_speaker_op = g_new0(CadOperation, 1);
+            disable_speaker_op->type = CAD_OPERATION_ENABLE_SPEAKER;
+
+            cad_pulse_enable_speaker(FALSE, disable_speaker_op);
+        }
     }
 
     if (operation->pulse->has_voice_profile) {
@@ -1210,11 +1348,24 @@ void cad_pulse_mute_mic(gboolean mute, CadOperation *cad_op)
     operation->op = cad_op;
     operation->value = (guint)mute;
 
-    op = pa_context_get_source_info_by_index(operation->pulse->ctx,
-                                             operation->pulse->source_id,
-                                             set_mic_mute, operation);
-    if (op)
+    if (operation->pulse->mic_state == CALL_AUDIO_MIC_OFF && !operation->value) {
+        g_debug("mic is muted, unmuting...");
+        op = pa_context_set_source_mute_by_index(operation->pulse->ctx,
+                                                 operation->pulse->source_id, 0,
+                                                 operation_complete_cb, operation);
+    } else if (operation->pulse->mic_state == CALL_AUDIO_MIC_ON && operation->value) {
+        g_debug("mic is active, muting...");
+        op = pa_context_set_source_mute_by_index(operation->pulse->ctx,
+                                                 operation->pulse->source_id, 1,
+                                                 operation_complete_cb, operation);
+    }
+
+    if (op) {
         pa_operation_unref(op);
+    } else {
+        g_debug("%s: nothing to be done", __func__);
+        operation_complete_cb(operation->pulse->ctx, 1, operation);
+    }
 
     return;
 
@@ -1225,5 +1376,23 @@ error:
     }
     if (operation)
         free(operation);
+}
+
+CallAudioMode cad_pulse_get_audio_mode(void)
+{
+    CadPulse *self = cad_pulse_get_default();
+    return self->audio_mode;
+}
+
+CallAudioSpeakerState cad_pulse_get_speaker_state(void)
+{
+    CadPulse *self = cad_pulse_get_default();
+    return self->speaker_state;
+}
+
+CallAudioMicState cad_pulse_get_mic_state(void)
+{
+    CadPulse *self = cad_pulse_get_default();
+    return self->mic_state;
 }
 

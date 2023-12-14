@@ -17,6 +17,7 @@ executable (
     'callaudiod',
     config_h,
     generated_dbus_sources,
+    libcallaudio_enum_sources,
     [
         'callaudiod.c', 'callaudiod.h',
         'cad-manager.c', 'cad-manager.h',

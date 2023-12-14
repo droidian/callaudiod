@@ -10,6 +10,8 @@
 #include "cad-manager.h"
 #include "cad-pulse.h"
 
+#include "libcallaudio.h"
+
 #include <gio/gio.h>
 #include <glib-unix.h>
 
@@ -49,8 +51,6 @@ static void complete_command_cb(CadOperation *op)
                                               G_DBUS_ERROR_FAILED,
                                               "Operation failed");
     }
-
-    free(op);
 }
 
 static gboolean cad_manager_handle_select_mode(CallAudioDbusCallAudio *object,
@@ -76,13 +76,21 @@ static gboolean cad_manager_handle_select_mode(CallAudioDbusCallAudio *object,
     }
 
     op->type = CAD_OPERATION_SELECT_MODE;
+    op->value = GUINT_TO_POINTER(mode);
     op->object = object;
     op->invocation = invocation;
     op->callback = complete_command_cb;
 
     g_debug("Select mode: %u", mode);
     cad_pulse_select_mode(mode, op);
+
     return TRUE;
+}
+
+static CallAudioMode
+cad_manager_get_audio_mode(CallAudioDbusCallAudio *object)
+{
+    return cad_pulse_get_audio_mode();
 }
 
 static gboolean cad_manager_handle_enable_speaker(CallAudioDbusCallAudio *object,
@@ -101,13 +109,21 @@ static gboolean cad_manager_handle_enable_speaker(CallAudioDbusCallAudio *object
     }
 
     op->type = CAD_OPERATION_ENABLE_SPEAKER;
+    op->value = GUINT_TO_POINTER(enable ? CALL_AUDIO_SPEAKER_ON : CALL_AUDIO_SPEAKER_OFF);
     op->object = object;
     op->invocation = invocation;
     op->callback = complete_command_cb;
 
     g_debug("Enable speaker: %d", enable);
     cad_pulse_enable_speaker(enable, op);
+
     return TRUE;
+}
+
+static CallAudioSpeakerState
+cad_manager_get_speaker_state(CallAudioDbusCallAudio *object)
+{
+    return cad_pulse_get_speaker_state();
 }
 
 static gboolean cad_manager_handle_mute_mic(CallAudioDbusCallAudio *object,
@@ -126,38 +142,35 @@ static gboolean cad_manager_handle_mute_mic(CallAudioDbusCallAudio *object,
     }
 
     op->type = CAD_OPERATION_MUTE_MIC;
+    op->value = GUINT_TO_POINTER(mute ? CALL_AUDIO_MIC_OFF : CALL_AUDIO_MIC_ON);
     op->object = object;
     op->invocation = invocation;
     op->callback = complete_command_cb;
 
     g_debug("Mute mic: %d", mute);
     cad_pulse_mute_mic(mute, op);
+
     return TRUE;
 }
 
-static void cad_manager_constructed(GObject *object)
+static CallAudioMicState
+cad_manager_get_mic_state(CallAudioDbusCallAudio *object)
 {
-    G_OBJECT_CLASS(cad_manager_parent_class)->constructed(object);
-}
-
-static void cad_manager_dispose(GObject *object)
-{
-    G_OBJECT_CLASS(cad_manager_parent_class)->dispose(object);
+    return cad_pulse_get_mic_state();
 }
 
 static void cad_manager_call_audio_iface_init(CallAudioDbusCallAudioIface *iface)
 {
     iface->handle_select_mode = cad_manager_handle_select_mode;
+    iface->get_audio_mode = cad_manager_get_audio_mode;
     iface->handle_enable_speaker = cad_manager_handle_enable_speaker;
+    iface->get_speaker_state = cad_manager_get_speaker_state;
     iface->handle_mute_mic = cad_manager_handle_mute_mic;
+    iface->get_mic_state = cad_manager_get_mic_state;
 }
 
 static void cad_manager_class_init(CadManagerClass *klass)
 {
-    GObjectClass *object_class = G_OBJECT_CLASS(klass);
-
-    object_class->constructed = cad_manager_constructed;
-    object_class->dispose = cad_manager_dispose;
 }
 
 static void cad_manager_init(CadManager *self)

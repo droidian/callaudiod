@@ -26,14 +26,34 @@
       <arg direction="out" name="success" type="b"/>
     </method>
 
+    <!--
+        AudioMode:
+        0 = default audio mode, 1 = voice call mode, 255 = unknown
+    -->
+    <property name="AudioMode" type="u" access="read"/>
+
     <method name="EnableSpeaker">
       <arg direction="in" name="enable" type="b"/>
       <arg direction="out" name="success" type="b"/>
     </method>
 
+    <!--
+        SpeakerState:
+        0 = off, 1 = on, 255 = unknown
+        all other values should be considered the same as 'unknown'
+    -->
+    <property name="SpeakerState" type="u" access="read"/>
+
     <method name="MuteMic">
       <arg direction="in" name="mute" type="b"/>
       <arg direction="out" name="success" type="b"/>
     </method>
+
+    <!--
+        MicState:
+        0 = off, 1 = on, 255 = unknown
+        all other values should be considered the same as 'unknown'
+    -->
+    <property name="MicState" type="u" access="read"/>
   </interface>
 </node>
