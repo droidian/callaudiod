@@ -295,8 +295,9 @@ static const gchar *get_available_sink_port(const pa_sink_info *sink, const gcha
                 /* wired_headset is the preferred one */
                 available_port = port;
                 break;
-            } else if (strcmp(port->name, DROID_OUTPUT_PORT_SPEAKER) == 0 || strcmp(port->name, DROID_OUTPUT_PORT_EARPIECE) == 0) {
-                /* builtin mic */
+            } else if ((strcmp(port->name, DROID_OUTPUT_PORT_SPEAKER) == 0 || strcmp(port->name, DROID_OUTPUT_PORT_EARPIECE) == 0) &&
+                       (!available_port || port->priority > available_port->priority)) {
+                /* between the built-in speaker and the earpiece the selection should respect the priority */
                 available_port = port;
             }
         } else if (!available_port || port->priority > available_port->priority) {
