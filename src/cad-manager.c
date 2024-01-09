@@ -81,8 +81,11 @@ static gboolean cad_manager_handle_select_mode(CallAudioDbusCallAudio *object,
     op->invocation = invocation;
     op->callback = complete_command_cb;
 
-    g_debug("Select mode: %u", mode);
-    cad_pulse_select_mode(mode, op);
+    CallAudioMode currentMode = cad_pulse_get_audio_mode();
+    if(currentMode != mode){
+        g_debug("Change mode from '%u', to '%u'",currentMode, mode);
+        cad_pulse_select_mode(mode, op);
+    }
 
     return TRUE;
 }
